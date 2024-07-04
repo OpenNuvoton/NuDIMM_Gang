@@ -1,0 +1,9 @@
+<!DOCTYPE RCC>
+<RCC>
+    <qresource prefix="/images">
+        <file alias="img">NuTool.ico</file>
+        <file alias="img">320px-Nuvoton.png</file>
+        <file alias="img">Nuvoton.png</file>
+    </qresource>
+
+</RCC>
