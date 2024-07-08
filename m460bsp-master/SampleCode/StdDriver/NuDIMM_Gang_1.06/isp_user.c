@@ -282,13 +282,16 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				pu8Src += 4;
 
 				while(total_length > 0){
-						dcount = (total_length > 52) ? 52 : total_length;
+						//printf("total_length = %d, head = %d\n", total_length, inpb(pu8Src));
+						CLK_SysTickDelay(50);
+						dcount = (total_length > 56) ? 56 : total_length;
 						I2C_TxData[0] = dcount + 5;
 						I2C_TxData[1] = dcount;
 						memcpy(&I2C_TxData[2], &write_addr, 4);
 						for (int j = 0; j < dcount; j++){
 								I2C_TxData[j + 6] = inpb(pu8Src + j);
 						}
+						//printf("write_addr = %d, dcount = %d\n", write_addr, dcount);
 						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x81, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, dcount + 6, 0);
 						total_length -= dcount;
 						write_addr += dcount;

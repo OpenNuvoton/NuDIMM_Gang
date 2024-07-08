@@ -44,37 +44,34 @@ unsigned int ISP_Read(io_handle_t* handle, unsigned char* pcBuffer, unsigned int
 	unsigned char usNum = 0;
 	unsigned int dwLength = 0;
 	handle->bResendFlag = FALSE;
-	while (1) {
-		if (handle->dev_open == FALSE) {
-			return FALSE;
-		}
-		dwLength = handle->m_dev_io.read(dwMilliseconds, handle->ac_buffer);
-		if (!dwLength) {
-			return FALSE;
-		}
+	if (handle->dev_open == FALSE) {
+		return FALSE;
+	}
+	dwLength = handle->m_dev_io.read(dwMilliseconds, handle->ac_buffer);
+	if (!dwLength) {
+		return FALSE;
+	}
 
-		usCheckSum = *((unsigned short*)&(handle->ac_buffer[1]));
-		if (bNum != NULL) {
-			memcpy(bNum, (unsigned char*)&(handle->ac_buffer[4]), 1);
-		}
-		if (ext != NULL) {
-			memcpy(ext, (unsigned char*)&(handle->ac_buffer[3]), 1);
-		}
+	usCheckSum = *((unsigned short*)&(handle->ac_buffer[1]));
+	if (bNum != NULL) {
+		memcpy(bNum, (unsigned char*)&(handle->ac_buffer[4]), 1);
+	}
+	if (ext != NULL) {
+		memcpy(ext, (unsigned char*)&(handle->ac_buffer[3]), 1);
+	}
 
-		if (dwLength >= 4 && usCheckSum == handle->m_usCheckSum) {
-			if (szMaxLen > dwLength - 4) {
-				szMaxLen = dwLength - 4;
-			}
-			if (pcBuffer != NULL && szMaxLen > 0) {
-				memcpy(pcBuffer, (unsigned char*)&(handle->ac_buffer[5]), szMaxLen);
-				//printf("szMaxLen = %d", szMaxLen);
-			}
-			return TRUE;
+	if (dwLength >= 4 && usCheckSum == handle->m_usCheckSum) {
+		if (szMaxLen > dwLength - 4) {
+			szMaxLen = dwLength - 4;
 		}
-		else {
-			handle->bResendFlag = TRUE;
-			break;
+		if (pcBuffer != NULL && szMaxLen > 0) {
+			memcpy(pcBuffer, (unsigned char*)&(handle->ac_buffer[5]), szMaxLen);
+			//printf("szMaxLen = %d", szMaxLen);
 		}
+		return TRUE;
+	}
+	else {
+		handle->bResendFlag = TRUE;
 	}
 	return TRUE;
 }
