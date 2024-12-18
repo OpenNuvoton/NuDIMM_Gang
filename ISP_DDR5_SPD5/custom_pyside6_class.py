@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QSpinBox, QLineEdit
-from PyQt5.QtCore import QRegExp
-from PyQt5.QtGui import QRegExpValidator
+from PySide6.QtWidgets import QSpinBox, QLineEdit
+from PySide6.QtCore import QRegularExpression
+from PySide6.QtGui import QRegularExpressionValidator
 
 class TwoDigitHexSpinBox(QSpinBox):
     def __init__(self, parent=None):
@@ -15,8 +15,8 @@ class VersionLineEdit(QLineEdit):
     def __init__(self, parent=None):
         super(VersionLineEdit, self).__init__(parent)
         # Set up a validator to ensure only hexadecimal values are entered
-        hexRegExp = QRegExp("[0-9A-Fa-f]{1}\\.[0-9A-Fa-f]{1}")
-        self.setValidator(QRegExpValidator(hexRegExp, self))
+        hexRegExp = QRegularExpression("[0-9A-Fa-f]{1}\\.[0-9A-Fa-f]{1}")
+        self.setValidator(QRegularExpressionValidator(hexRegExp, self))
         self.setText("1.0")  # Default value
         
     def setValue(self, value_1, value_2):
@@ -44,8 +44,8 @@ class HexLineEdit(QLineEdit):
     def __init__(self, parent=None):
         super(HexLineEdit, self).__init__(parent)
         # Set up a validator to ensure only hexadecimal values are entered
-        hexRegExp = QRegExp("0x[0-9A-Fa-f]{1,4}")
-        self.setValidator(QRegExpValidator(hexRegExp, self))
+        hexRegExp = QRegularExpression("0x[0-9A-Fa-f]{1,4}")
+        self.setValidator(QRegularExpressionValidator(hexRegExp, self))
         self.setText("0x0000")  # Default value
 
     def setValue(self, value):
@@ -60,8 +60,8 @@ class EightDigitHexLineEdit(QLineEdit):
     def __init__(self, parent=None):
         super(EightDigitHexLineEdit, self).__init__(parent)
         # Set up a validator to ensure only hexadecimal values are entered
-        hexRegExp = QRegExp("0x[0-9A-Fa-f]{1,8}")
-        self.setValidator(QRegExpValidator(hexRegExp, self))
+        hexRegExp = QRegularExpression("0x[0-9A-Fa-f]{1,8}")
+        self.setValidator(QRegularExpressionValidator(hexRegExp, self))
         self.setText("0x00000000")  # Default value
 
     def setValue(self, value):

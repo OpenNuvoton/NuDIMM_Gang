@@ -1,7 +1,7 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QDate, QThread, QObject, QRegExp, Qt, pyqtSignal, pyqtSlot
-from PyQt5.QtWidgets import QDialog, QStyledItemDelegate, QLineEdit, QMessageBox
-from PyQt5.QtGui import QRegExpValidator
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import QDate, QThread, QObject, QRegExp, Qt, Signal, Slot
+from PySide6.QtWidgets import QDialog, QStyledItemDelegate, QLineEdit, QMessageBox
+from PySide6.QtGui import QRegExpValidator
 
 from config_spd import Ui_Dialog
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ def qdate_to_year_week(qdate):
     return iso_year, iso_week    
 class Dialog_Ui(QDialog, Ui_Dialog):
 
-    data_updated = pyqtSignal(object)
+    data_updated = Signal(object)
 
     def __init__(self, config = [], parent=None):
         super(Dialog_Ui, self).__init__(parent)

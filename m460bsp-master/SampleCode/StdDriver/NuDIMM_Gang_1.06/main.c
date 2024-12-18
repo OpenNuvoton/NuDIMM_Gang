@@ -90,11 +90,11 @@ void SYS_Init(void)
 		GPIO_SetMode(PB, BIT15, GPIO_MODE_OUTPUT);
 		GPIO_SetMode(PC, BIT14, GPIO_MODE_OUTPUT);
 		
-		GPIO_SetMode(PC, BIT5, GPIO_MODE_INPUT);
+		GPIO_SetMode(PC, BIT5, GPIO_MODE_QUASI);
 		GPIO_EnableInt(PC, 5, GPIO_INT_FALLING);
 		
-		GPIO_SetMode(PA, BIT12 | BIT13 | BIT14 | BIT15, GPIO_MODE_INPUT);
-		GPIO_SetMode(PC, BIT4, GPIO_MODE_INPUT);
+		GPIO_SetMode(PA, BIT12 | BIT13 | BIT14 | BIT15, GPIO_MODE_QUASI);
+		GPIO_SetMode(PC, BIT4, GPIO_MODE_QUASI);
 		
 		GPIO_EnableInt(PA, 12, GPIO_INT_FALLING);
 		GPIO_EnableInt(PA, 13, GPIO_INT_FALLING);
@@ -194,7 +194,7 @@ void GPA_IRQHandler(void)
 					if (target_i2c > MAX_PORT + 1){
 						target_i2c = 1;
 					}
-					if (target_i2c == MAX_PORT + 1 && target_cmd != 1){
+					if (target_i2c == MAX_PORT + 1 && target_cmd != 1 && target_cmd != 6){
 						target_i2c = 1;
 					}
 				}
@@ -211,7 +211,7 @@ void GPA_IRQHandler(void)
 					if (target_cmd == 2 || target_cmd == 5){
 						target_i2c = 1;
 					}
-					if (target_cmd != 1 && target_i2c == MAX_PORT + 1){
+					if (target_cmd != 1 && target_cmd != 6 && target_i2c == MAX_PORT + 1){
 						target_i2c = 1;
 					}
 				}
@@ -223,7 +223,7 @@ void GPA_IRQHandler(void)
         GPIO_CLR_INT_FLAG(PA, BIT15);
 				if (view_mode == 0){
 					target_i2c --;
-					if (target_i2c == 0 && target_cmd != 1){
+					if (target_i2c == 0 && target_cmd != 1 && target_cmd != 6){
 						target_i2c = MAX_PORT;
 					}
 					if (target_i2c == 0){
@@ -254,7 +254,7 @@ void GPC_IRQHandler(void)
 					if (target_cmd == 2 || target_cmd == 5){
 						target_i2c = 1;
 					}
-					if (target_cmd != 1 && target_i2c == MAX_PORT + 1){
+					if (target_cmd != 1 && target_cmd != 6 && target_i2c == MAX_PORT + 1){
 						target_i2c = 1;
 					}
 				}
@@ -282,7 +282,7 @@ void update_lcd(void){
 		if (view_mode == 0){			
 			ssd1306_Fill(Black);
 			ssd1306_SetCursor(2, 0);
-			ssd1306_WriteString("NUDIMM_GANG V1.08", Font_6x8, White);
+			ssd1306_WriteString("NUDIMM_GANG V1.09", Font_6x8, White);
 			char str_buffer[64] = {0};
 			const char *word;
 			switch (target_cmd) {
@@ -292,6 +292,7 @@ void update_lcd(void){
 				case 3: word = "SPD READ"; break;
 				case 4: word = "DIMM INFO"; break;
 				case 5: word = "SPD INFO"; break;
+				case 6: word = "SPD PROGRAM"; break;
         default: word = "INVALID"; break;
 			}
 			sprintf(str_buffer, "I2C CMD: %s", word);

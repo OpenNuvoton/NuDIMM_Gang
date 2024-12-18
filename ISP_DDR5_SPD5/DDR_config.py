@@ -1,6 +1,6 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QDate, QThread, QObject, QRegExp, Qt, pyqtSignal, pyqtSlot
-from PyQt5.QtWidgets import QDialog, QStyledItemDelegate, QLineEdit, QMessageBox
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import QDate, QThread, QObject, QRegularExpression, Qt, Signal, Slot
+from PySide6.QtWidgets import QDialog, QStyledItemDelegate, QLineEdit, QMessageBox
 
 from config_spd_2 import Ui_Dialog
 from list_table import dimm_type, pmic, ts5, module_speed

@@ -15,6 +15,11 @@
 #include "HAL_TICK_CONTROL.h"
 #include "targetdev.h"
 
+// -----------DEBUG-------------
+//uint32_t verify_value[5] = {0x0, 0x0, 0x0, 0x0, 0x0};
+
+// -----------DEBUG-------------
+
 uint8_t g_au8ResponseBuff[PACK_SIZE];
 
 static uint8_t g_au8ApromBuf[FMC_FLASH_PAGE_SIZE];
@@ -989,6 +994,9 @@ int offline_operation(int port, int cmd){
 								result_crc32 += (I2C_RxData[i][2]) << 16;
 								result_crc32 += (I2C_RxData[i][1]) << 8;  
 								result_crc32 += (I2C_RxData[i][0]);
+								// ---------- DEBUG
+								//verify_value[i] = result_crc32;
+								// ---------- DEBUG
 								if (result_crc32 != bin_crc32){
 										verify |= (0x1 << i);						
 								}
@@ -1025,7 +1033,19 @@ int offline_operation(int port, int cmd){
 				}
 				ssd1306_SetCursor(2, 0 + 8 * 2);
 				ssd1306_WriteString(str_buffer, Font_6x8, White);
+				
 				ssd1306_UpdateScreen();
+				// ------------ DEBUG ------------
+				//sprintf(str_buffer,  "base CRC %x", bin_crc32);
+				//		ssd1306_SetCursor(2, 16);
+				//		ssd1306_WriteString(str_buffer, Font_6x8, White);
+				//for (int i = 0; i < 5; i++){
+				//		sprintf(str_buffer,  "CRC%d: %x", i, verify_value[i]);
+				//		ssd1306_SetCursor(2, 24 + 8 * i);
+				//		ssd1306_WriteString(str_buffer, Font_6x8, White);
+				//}
+				//ssd1306_UpdateScreen();
+				// ------------ DEBUG ------------
 				if (verify != 0) {
 						FMC_DISABLE_AP_UPDATE(); 
 						FMC_Close(); 
@@ -1420,6 +1440,223 @@ int offline_operation(int port, int cmd){
 				ssd1306_UpdateScreen();
 
 				return 1;
+				
+				FMC_DISABLE_AP_UPDATE(); 
+				FMC_Close(); 
+				SYS_LockReg();
+		}
+		else if (cmd == 6){
+				// check offline data exist
+				ssd1306_Fill(Black);
+				SYS_UnlockReg();
+				FMC_Open(); 
+				FMC_ENABLE_AP_UPDATE();
+			
+				g_u32ApromSize = GetApromSize();
+				GetDataFlashInfo(&g_u32DataFlashAddr, &g_u32DataFlashSize);
+				g_u32DataFlashAddr += 0x400;
+				FMC_Read_User(g_u32DataFlashAddr, &bin_len);
+				g_u32DataFlashAddr += 4;
+				FMC_Read_User(g_u32DataFlashAddr, &bin_crc32);
+				g_u32DataFlashAddr += 4;
+			
+				bin_written = 0;
+				if (bin_len == 0 || bin_len == 0xFFFFFFFF){
+						sprintf(str_buffer,  "No Bin in Flash");
+						ssd1306_SetCursor(2, 0);
+						ssd1306_WriteString(str_buffer, Font_6x8, White);
+						sprintf(str_buffer,  "Input to continue...");
+						ssd1306_SetCursor(2, 0 + 8 * 2);
+						ssd1306_WriteString(str_buffer, Font_6x8, White);
+						ssd1306_UpdateScreen();
+					
+						FMC_DISABLE_AP_UPDATE(); 
+						FMC_Close(); 
+						SYS_LockReg();
+						return 0;
+				}
+				
+				check_boot();
+				
+				uint8_t I2C_num_2 = 0;
+				uint8_t I2C_ext_2 = 0;
+				for (int i = 0 ; i < MAX_PORT ; i++){
+						if ((port_boot_state[i] == 0x1) && (i < 4)){
+								I2C_num_2 += (0x1 << i);
+						}
+						else if ((port_boot_state[i] == 0x1) && (i == 4)){
+								I2C_ext_2 = 0x1;
+						}
+				}				
+				I2C_num_2 = I2C_num_2 & I2C_num_base;
+				I2C_ext_2 = I2C_ext_2 & I2C_ext_base;
+				I2C_TxData[0] = 0x0;
+				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+
+				// wait for some time
+				for(int i = 0 ; i < 20; i++){
+						CLK_SysTickDelay(50000);
+				}				
+				check_boot();
+				
+				I2C_num_2 = 0;
+				I2C_ext_2 = 0;
+				for (int i = 0 ; i < MAX_PORT ; i++){
+						if ((port_boot_state[i] == 0x0) && (i < 4)){
+								I2C_num_2 += (0x1 << i);
+						}
+						else if ((port_boot_state[i] == 0x0) && (i == 4)){
+								I2C_ext_2 = 0x1;
+						}
+				}				
+				I2C_num_2 = I2C_num_2 & I2C_num_base;
+				I2C_ext_2 = I2C_ext_2 & I2C_ext_base;
+				if (I2C_num_2 != 0 || I2C_ext_2 != 0){
+						ssd1306_Fill(Black);
+						sprintf(str_buffer,  "PORT jumped");
+						ssd1306_SetCursor(2, 0);
+						ssd1306_WriteString(str_buffer, Font_6x8, White);
+						sprintf(str_buffer,  "continue...");
+						ssd1306_SetCursor(2, 0 + 8 * 2);
+						ssd1306_WriteString(str_buffer, Font_6x8, White);
+				}
+				else {
+						ssd1306_Fill(Black);
+						sprintf(str_buffer,  "PORT jump failed");
+						ssd1306_SetCursor(2, 0);
+						ssd1306_WriteString(str_buffer, Font_6x8, White);
+						sprintf(str_buffer,  "Input to continue...");
+						ssd1306_SetCursor(2, 0 + 8 * 2);
+						ssd1306_WriteString(str_buffer, Font_6x8, White);
+						ssd1306_UpdateScreen();
+						return 0;
+				}
+				ssd1306_UpdateScreen();
+				// write SPD
+				g_u32ApromSize = GetApromSize();
+				GetDataFlashInfo(&g_u32DataFlashAddr, &g_u32DataFlashSize);
+				bin_written = 0x0;
+				
+				ssd1306_Fill(Black);
+				sprintf(str_buffer,  "SPD Writing...");
+				ssd1306_SetCursor(2, 0 + 8 * 0);
+				ssd1306_WriteString(str_buffer, Font_6x8, White);
+				ssd1306_UpdateScreen();
+	
+				uint8_t I2C_num = 0;
+				uint8_t I2C_ext = 0;
+				for (int i = 0 ; i < MAX_PORT ; i++){
+						if ((port_boot_state[i] == 0x0) && (i < 4)){
+								I2C_num += (0x1 << i);
+						}
+						else if ((port_boot_state[i] == 0x0) && (i == 4)){
+								I2C_ext = 0x1;
+						}
+				}	
+				I2C_num = I2C_num & I2C_num_base;
+				I2C_ext = I2C_ext & I2C_ext_base;
+				unsigned int offset = 0;
+				while (bin_written < 1024){
+						dcount = (32 < 1024 - bin_written)? 32: 1024 - bin_written;
+						FMC_Proc(FMC_ISPCMD_READ, g_u32DataFlashAddr + bin_written, g_u32DataFlashAddr + bin_written + dcount, data);
+						
+						if (offset % 4 == 0x0){
+								I2C_TxData[0] = offset / 4;
+								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						}
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x30, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+						
+						uint8_t block_pass[5] = {0, 0, 0, 0, 0};
+						I2C_num_2 = 0;
+						I2C_RxData[0][0] = 0;
+						I2C_RxData[1][0] = 0;
+						I2C_RxData[2][0] = 0;
+						I2C_RxData[3][0] = 0;
+						for(int i = 0 ; i < MAX_PORT ; i++){
+								if (i != 4 && (I2C_num & (0x01 << i)) != 0x0){
+										block_pass[i] = I2C_RxData[i][0] & 0x4;
+										if (block_pass[i]){
+												I2C_num_2 |= (0x01 << i);
+										}
+								}
+								else if (i == 4 && I2C_ext != 0){
+										block_pass[i] = I2C_RxData[i][0] & 0x4;
+										if (block_pass[i]){
+												I2C_ext_2 |= 0x01;
+										}
+								}
+						}
+						if (offset == 0x0 && offset / 4 == 0x0){
+								I2C_TxData[0] = 0x0;
+								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_TxData[0] = 0x0;
+								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						}
+						uint8_t checker[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+						I2C_RxData[0][0] = 0xFF;
+						I2C_RxData[1][0] = 0xFF;
+						I2C_RxData[2][0] = 0xFF;
+						I2C_RxData[3][0] = 0xFF;
+						I2C_RxData[4][0] = 0xFF;
+						if ((offset / 4) < 4){
+								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+								for (int i = 0 ; i < MAX_PORT ; i++){
+										checker[i] = I2C_RxData[i][0];
+								}
+						}
+						else{
+								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+								for (int i = 0 ; i < MAX_PORT ; i++){
+										checker[i] = I2C_RxData[i][0];
+								}
+						}
+						I2C_num_2 = 0;
+						I2C_ext_2 = 0;
+						for (int i = 0 ; i < MAX_PORT ; i++){
+								if (i != 4 && !checker[i]){
+										I2C_num_2 |= (0x01 << i);
+								}
+								else if (i == 4 && !checker[i]){
+										I2C_ext_2 = 0x01;
+								}
+						}
+						I2C_num_2 = I2C_num_2 & I2C_num;
+						I2C_ext_2 = I2C_ext_2 & I2C_ext;
+						uint8_t oo = (offset % 4);
+						uint8_t reg = oo * 32 + 0x80;
+						for (int j = 0; j < 8; j++){
+								I2C_TxData[0] = (uint8_t)(data[j] & 0xFF);
+								int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_TxData[0] = (uint8_t)((data[j] >> 8) & 0xFF);
+								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 1 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_TxData[0] = (uint8_t)((data[j] >> 16) & 0xFF);
+								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 2 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_TxData[0] = (uint8_t)((data[j] >> 24) & 0xFF);
+								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 3 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						}
+						bin_written += dcount;
+						offset ++;
+				}
+				
+				uint32_t light = 0x7FFF;
+				for(int i = 0; i < MAX_PORT ; i++){
+						if (i < 4 && port_boot_state[i] == 0x1 && (I2C_num & (0x1 << i))){
+								light -= (0x4 << (i * 3)); // PASS ON
+						}
+						else if (i == 4 && port_boot_state[i] == 0x1 && (I2C_ext & 0x1)){
+								light -= (0x4 << (i * 3)); // PASS ON
+						}
+				}
+				gpio_led_ctrl(light);
+				
+				ssd1306_Fill(Black);
+				sprintf(str_buffer,  "SPD Writing done");
+				ssd1306_SetCursor(2, 0);
+				ssd1306_WriteString(str_buffer, Font_6x8, White);
+				sprintf(str_buffer,  "Input to continue...");
+				ssd1306_SetCursor(2, 0 + 8 * 2);
+				ssd1306_WriteString(str_buffer, Font_6x8, White);
+				ssd1306_UpdateScreen();
 				
 				FMC_DISABLE_AP_UPDATE(); 
 				FMC_Close(); 

@@ -10,10 +10,10 @@ import hid
 
 from ctypes import *
 from configparser import ConfigParser
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QThread, QObject, QRegExp, Qt, pyqtSignal, pyqtSlot, QSize
-from PyQt5.QtWidgets import QMainWindow, QStyledItemDelegate, QLineEdit, QMessageBox
-from PyQt5.QtGui import QRegExpValidator, QTextCursor, QIcon, QColor, QBrush, QPixmap
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import QThread, QObject, QRegularExpression, Qt, Signal, Slot, QSize
+from PySide6.QtWidgets import QMainWindow, QStyledItemDelegate, QLineEdit, QMessageBox
+from PySide6.QtGui import QRegularExpressionValidator, QTextCursor, QIcon, QColor, QBrush, QPixmap
 from webbrowser import open_new
 
 from DDR_mainwindow_tab_debug_2 import Ui_MainWindow
@@ -29,7 +29,7 @@ RWFUNCTYPE = CFUNCTYPE(c_uint, c_uint, POINTER(c_ubyte))
 
 APP_MODE = False
 
-version_number = "08"
+version_number = "10"
 pack_size = 1024
 
 class DEV_IO(Structure):
@@ -114,7 +114,6 @@ class USB_dev_io:
             buffer_as_bytes = (c_ubyte * (len(return_str)+1))()
             buffer_as_bytes[1:] = return_str
             memmove(buffer, buffer_as_bytes, len(buffer_as_bytes))
-            #print(bytearray(buffer_as_bytes[0:10]), len(buffer_as_bytes) - 1)
             return len(buffer_as_bytes) - 1
             
         except Exception as e:
@@ -124,17 +123,18 @@ class USB_dev_io:
             return 0
             
 class Worker(QObject):
-    finished = pyqtSignal()
-    error = pyqtSignal(str)
-    update_progress_signal = pyqtSignal(int, str) 
-    update_table_signal = pyqtSignal(int, int)
-    change_table_signal = pyqtSignal()
+    finished = Signal()
+    error = Signal(str)
+    update_progress_signal = Signal(int, str) 
+    update_table_signal = Signal(int, int)
+    return_serial_signal = Signal(int, int)
+    change_table_signal = Signal()
     
     def __init__(self, ui):
         super().__init__()
         self.ui = ui
         
-    @pyqtSlot()    
+    @Slot()    
     def write_aprom_online(self):
         try:
             self.ui.APROM_file = []
@@ -226,7 +226,7 @@ class Worker(QObject):
             print(f"An exception occurred: {e}")
             
             
-    @pyqtSlot()    
+    @Slot()    
     def write_aprom_offline(self):
         try:
             self.ui.APROM_file = []
@@ -294,7 +294,7 @@ class Worker(QObject):
         except Exception as e:
             print(f"An exception occurred: {e}")
             
-    @pyqtSlot()    
+    @Slot()    
     def read_spd_offline(self): 
         try:
             start_addr = 0x27000
@@ -319,7 +319,7 @@ class Worker(QObject):
         except Exception as e:
             print(f"An exception occurred: {e}")
             
-    @pyqtSlot()
+    @Slot()
     def read_spd(self):
         try:
             bsel = int(self.ui.board_select_solo() & 0xF) 
@@ -347,7 +347,28 @@ class Worker(QObject):
         except Exception as e:
             print(f"An exception occurred: {e}")
             
-    @pyqtSlot()
+    @Slot()
+    def read_spd_serial(self):
+        try:
+            bsel = 0xF
+            bext = 1 
+            Num = c_ubyte(0)
+            Num_ext = c_ubyte(0)
+            boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            for rv_s in range(0, 5):
+                if ((boot >> (8 * rv_s)) & 0xFF) == 0x0:
+                    bsel = (0x1 << rv_s) if (rv_s != 4) else 0
+                    bext = 1 if (rv_s == 4) else 0
+                    data = (c_ubyte * 32)()
+                    self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
+                    self.return_serial_signal.emit(data[5] * 256 * 256 * 256 + data[6] * 256 * 256 + data[7] * 256 + data[8], rv_s)  
+                
+            self.finished.emit()
+            
+        except Exception as e:
+            print(f"An exception occurred: {e}")
+            
+    @Slot()
     def write_spd_from_file(self):
         try:
             bsel = self.ui.board_select()
@@ -381,12 +402,36 @@ class Worker(QObject):
         except Exception as e:
             print(f"An exception occurred: {e}")
             
+    @Slot()
+    def update_serial(self):
+        try:
+            bsel = 0xF
+            bext = 1 
+            Num = c_ubyte(0)
+            Num_ext = c_ubyte(0)
+            boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            for rv_s in range(0, 5):
+                if ((boot >> (8 * rv_s)) & 0xFF) == 0x0:
+                    bsel = (0x1 << rv_s) if (rv_s != 4) else 0
+                    bext = 1 if (rv_s == 4) else 0
+                    data = (c_ubyte * 32)()
+                    self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
+                    for i in range(0, 4):
+                        data[8 - i] = (self.ui.serial_num[rv_s] >> (8 * i)) & 0xFF 
+                    self.ui.lib.Write_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
+                    #self.return_serial_signal.emit(data[5] * 256 * 256 * 256 + data[6] * 256 * 256 + data[7] * 256 + data[8], rv_s)  
+                
+            self.finished.emit()
+            
+        except Exception as e:
+            print(f"An exception occurred: {e}")
+            
 class HexDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
         editor = QLineEdit(parent)
         # Define a regular expression that matches a 2-digit hex value with "0x" prefix
-        regex = QRegExp("^0x[0-9A-Fa-f]{2}$")
-        validator = QRegExpValidator(regex, editor)
+        regex = QRegularExpression("^0x[0-9A-Fa-f]{2}$")
+        validator = QRegularExpressionValidator(regex, editor)
         editor.setValidator(validator)
         return editor
 
@@ -404,9 +449,11 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.s_state = 0
         self.a_state = 0
-        
+        self.serial_num = [0x0, 0x0, 0x0, 0x0, 0x0]
+
         if APP_MODE:
-            image_path = os.path.join(sys._MEIPASS, 'Nuvoton.png')
+            base_path = os.path.dirname(sys.executable)
+            image_path = os.path.join(base_path, 'image', 'Nuvoton.png')
         else:
             image_path = './image/Nuvoton.png'
             
@@ -571,6 +618,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
         self.update_slot_state(0, 0)
         self.a_state = 0
         self.s_state = 0
+        self.serial_num = [0x0, 0x0, 0x0, 0x0, 0x0]
         label_t = ["Customer ID: ", "Chip ID: ", "LED ID: ", "Project ID: ", "FT ID: "]
         for i in range(0, 5):
             getattr(self, f'label_slot_{i}').setText(f"Not Connected")
@@ -808,6 +856,14 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
         else:
             reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
             
+    def ReadSerial(self):
+        self.text_browser.clear()
+        if self.check_connect_board():
+            self.worker = Worker(self)
+            self.setup_worker_thread(self.worker.read_spd_serial)
+        else:
+            reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
+            
     def WriteSPD(self):
         self.text_browser.clear()
         if self.check_connect_board():
@@ -818,33 +874,38 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
             
     def setup_worker_thread(self, worker_function, next_worker_function = None, end = None):
+        self.next_worker_function = next_worker_function
+        self.end = end
         self.thread = QThread()
         self.worker.moveToThread(self.thread)
-
         # Connect signals and slots
         self.thread.started.connect(worker_function)
         self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.finished.connect(self.worker.deleteLater)
         self.worker.update_progress_signal.connect(self.update_progress)
         self.worker.update_table_signal.connect(self.update_table)
+        self.worker.return_serial_signal.connect(self.return_serial)
         self.worker.change_table_signal.connect(self.change_spd_table)
         self.worker.error.connect(self.handle_error)
         self.worker.destroyed.connect(self.on_worker_deleted)
         
         self.set_all_button(False)
-        self.worker.finished.connect(lambda: self.set_all_button(True))
-        
-        if next_worker_function == 'w':
-            self.worker.finished.connect(self.jump_aprom_and_write_spd)
-        elif next_worker_function == 'j':
-            self.worker.finished.connect(self.jump_aprom)
-    
-        if end == True: 
-            self.worker.finished.connect(self.Online_End)
+        self.worker.finished.connect(self.worker_finished)
             
         # Start the thread
         self.thread.start()
+        
+    def worker_finished(self):
+        self.set_all_button(True)       
+        if self.next_worker_function == 'w':
+            self.jump_aprom_and_write_spd()
+        elif self.next_worker_function == 'j':
+            self.jump_aprom()
+    
+        if self.end == True: 
+            self.end = None
+            self.Online_End()
         
     def Online_End(self):
         reply = QMessageBox.warning(None, 'Warning', 'Online Programming Finish!')
@@ -996,6 +1057,8 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             self.a_state = slot_sum    
             self.update_slot_state(self.a_state, 0)
             print("--- Get SLOT information Finish ---")
+            self.serial_num = [0x0, 0x0, 0x0, 0x0, 0x0]
+            self.ReadSerial()
         else:
             reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
         
@@ -1146,12 +1209,26 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
         self.config_window.show()
         
     def show_checker(self):
-        self.checker_window = Dialog_Ui_4()
+        self.checker_window = Dialog_Ui_4(self.serial_num)
+        self.checker_window.setModal(True)
+        self.checker_window.data_updated.connect(self.update_serial)
         self.checker_window.show()
         
     def update_main_data(self, config):
         self.spd_table_w_value = config
-        self.change_spd_table()
+        self.change_spd_table()        
+
+    def update_serial(self, serial_num):
+        self.text_browser.clear()
+        serial_num = self.serial_num
+        #for i in range(0, 5):
+        #    print(f'slot {i} serial = ' + hex(serial_num[i]))
+            
+        if self.check_connect_board():
+            self.worker = Worker(self)
+            self.setup_worker_thread(self.worker.update_serial)
+        else:
+            reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')        
         
     def verify_file(self, ret):
         for i in range(0, 5): 
@@ -1175,7 +1252,10 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             
             if not self.conf.has_section('Setting'):
                 self.conf.add_section('Setting')
-            self.conf.set('Setting', 'SLOT', str(self.board_select()))
+            tt = str(self.board_select() + 16 * self.board_ext_select())
+            if self.checkBox_slot_all.isChecked():
+                tt = '31'
+            self.conf.set('Setting', 'SLOT', tt)
         
             self.conf.write(open(filename, 'w', encoding='utf-8'))
             
@@ -1227,7 +1307,8 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             except Exception as e:
                 QMessageBox.warning(None, 'Warning', f"An error occurred: {e}")
                 print(f"An error occurred: {e}")
-            
+                
+    @Slot()       
     def update_progress(self, percent, text):
         self.label_progress_state.setText("Progress: " + text)
         self.progressBar.setValue(percent)
@@ -1235,6 +1316,10 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
     def update_table(self, index, value):
         self.spd_table_value[index] = value & 0xFF
         self.spd_table_w_value[index] = value & 0xFF
+        
+    def return_serial(self, value, index):
+        self.serial_num[index] = value & 0xFFFFFFFF
+        #print(hex(self.serial_num[index]))
         
     def item_info(self, item):
         index = 0 if self.radioButton_page_1.isChecked() else 1
@@ -1313,6 +1398,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
         self.pushButton_read_board.setEnabled(state)
         self.radioButton_online.setEnabled(state)
         self.radioButton_offline.setEnabled(state)
+        self.menubar.setEnabled(state)
         
         if (state == True):
             self.update_slot_state(self.a_state, self.s_state)
@@ -1331,6 +1417,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             self.radioButton_slot_0.setEnabled(False)
             self.checkBox_ap.setEnabled(False)
             self.checkBox_spd.setEnabled(False)
+            self.menubar.setEnabled(False)
             
     def on_worker_deleted(self):
         self.worker = None   
@@ -1345,7 +1432,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
     def showUM(self):         
         manual_path = os.path.join(".", "UM_NuDIMM-Gang.pdf")
         open_new(manual_path)
-        
+        '''
         self.text_browser.clear()
         if self.check_connect_board():
             bsel = self.board_select()
@@ -1357,24 +1444,25 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
                 reply = QMessageBox.warning(None, 'Warning', 'Please check selected SLOT is connected!')
                 return
                 
-            NumID = c_ubyte(0)
-            NumID_ext = c_ubyte(0)    
-            self.lib.Write_Reg(pointer(self.io_handle_t), bsel, bext, 8, 76, byref(NumID), byref(NumID_ext))
-            self.lib.Write_Reg(pointer(self.io_handle_t), bsel, bext, 8, 85, byref(NumID), byref(NumID_ext))
-            time.sleep(5)
+            #NumID = c_ubyte(0)
+            #NumID_ext = c_ubyte(0)    
+            #self.lib.Write_Reg(pointer(self.io_handle_t), bsel, bext, 8, 76, byref(NumID), byref(NumID_ext))
+            #self.lib.Write_Reg(pointer(self.io_handle_t), bsel, bext, 8, 85, byref(NumID), byref(NumID_ext))
+            #time.sleep(5)
             
             self.Ui_jump_ld()
             time.sleep(0.1)
             if not self.check_connect_boot(bsel, bext, 0x0):
                 reply = QMessageBox.warning(None, 'Warning', 'NuDIMM-Gang ISP is only open for Nuvoton DIMM')
                 return False
-
+        
         else:
             reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
             return False
+        '''
             
 class EmittingStream(QObject):
-    textWritten = pyqtSignal(str)
+    textWritten = Signal(str)
     def write(self, text):
         self.textWritten.emit(str(text))
     def flush(self):
@@ -1386,7 +1474,8 @@ if __name__ == "__main__":
     import iconQrc
     if getattr(sys, 'frozen', False):
         APP_MODE = True
-        icon_path = os.path.join(sys._MEIPASS, 'NuTool.ico')
+        base_path = os.path.dirname(sys.executable)
+        icon_path = os.path.join(base_path, 'image', 'NuTool.ico')
     else:
         APP_MODE = False
         icon_path = './image/NuTool.ico'

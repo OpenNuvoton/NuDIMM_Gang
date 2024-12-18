@@ -10,9 +10,9 @@
 #define ISP_USER_H
 
 #define MAX_PORT  									5
-#define MAX_CMD											5
+#define MAX_CMD											6
 
-#define FW_VERSION                  0x3A
+#define FW_VERSION                  0x19
 #define PACK_SIZE										1024
 
 #define CMD_GET_FWVER               0xA6
