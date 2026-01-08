@@ -31,6 +31,8 @@ APP_MODE = False
 
 version_number = "10"
 pack_size = 1024
+pause_time = 0.015
+reg_pause_time = 0.006
 
 class DEV_IO(Structure):
     _fields_ = [
@@ -109,7 +111,7 @@ class USB_dev_io:
         
     def USB_read(self, Ctime, buffer):
         try:
-            return_str = self.dev.read((pack_size + 1), 8000) #return by string
+            return_str = self.dev.read((pack_size + 1), 100000) #return by string
             
             buffer_as_bytes = (c_ubyte * (len(return_str)+1))()
             buffer_as_bytes[1:] = return_str
@@ -127,7 +129,7 @@ class Worker(QObject):
     error = Signal(str)
     update_progress_signal = Signal(int, str) 
     update_table_signal = Signal(int, int)
-    return_serial_signal = Signal(int, int)
+    return_serial_signal = Signal(object, int)
     change_table_signal = Signal()
     
     def __init__(self, ui):
@@ -326,27 +328,47 @@ class Worker(QObject):
             bext = 1 if (self.ui.board_select_solo() == 0x10) else 0
             Num = c_ubyte(0)
             Num_ext = c_ubyte(0)
-            boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
-            rv_s = self.ui.reverse_single(bsel) if (bext == 0) else 4
-            if ((boot >> (8 * rv_s)) & 0xFF) == 0x0:
-                print(f"--- Read SPD Start ---")
-                for h in range(0, 8):
-                    for i in range(0, 4):
-                        data = (c_ubyte * 32)()
-                        self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, h, i, byref(data), byref(Num), byref(Num_ext))
+            #boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            print(f"--- Read SPD Start ---")
+            for h in range(0, 8):
+                for i in range(0, 4):
+                    data = (c_ubyte * 32)()
+                    self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, h, i, byref(data), byref(Num), byref(Num_ext))
+                    
+                    if (Num.value != bsel):
+                        for ri in range(0, 4):
+                            if bsel & (0x1 << ri) != 0 and Num.value & (0x1 << ri) == 0:
+                                print(f'slot {ri + 1} page {h} is blocked by write protect')
+                    elif (Num.value != 0):
+                        for ri in range(0, 4):
+                            if bsel & (0x1 << ri) != 0:
+                                print(f'slot {ri + 1} page {h} do get spd')
                         
-                        index = h * 128 + i * 32
-                        for j in range(0, 32):
-                            self.update_table_signal.emit(index + j, data[j])
+                    if (Num_ext.value != bext):
+                        if bext != 0 and Num_ext.value == 0:
+                            print(f'slot {0} page {h} is blocked by write protect')
+                    elif (Num_ext.value != 0):
+                        print(f'slot {0} page {h} do get spd')
+                    
+                    index = h * 128 + i * 32
+                    for j in range(0, 32):
+                        self.update_table_signal.emit(index + j, data[j])
 
-                print("--- Read SPD Finish ---")
-                self.change_table_signal.emit()
+            self.Reset_SPD_page(bsel, bext)
+            print("--- Read SPD Finish ---")
+            self.change_table_signal.emit()
                 
             self.finished.emit()
 
         except Exception as e:
             print(f"An exception occurred: {e}")
-            
+           
+    def Reset_SPD_page(self, bsel, bext):
+        Num = c_ubyte(0)
+        Num_ext = c_ubyte(0)
+        self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 11, 0, byref(Num), byref(Num_ext))
+        time.sleep(reg_pause_time)
+           
     @Slot()
     def read_spd_serial(self):
         try:
@@ -354,14 +376,14 @@ class Worker(QObject):
             bext = 1 
             Num = c_ubyte(0)
             Num_ext = c_ubyte(0)
-            boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            #boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
             for rv_s in range(0, 5):
-                if ((boot >> (8 * rv_s)) & 0xFF) == 0x0:
-                    bsel = (0x1 << rv_s) if (rv_s != 4) else 0
-                    bext = 1 if (rv_s == 4) else 0
-                    data = (c_ubyte * 32)()
-                    self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
-                    self.return_serial_signal.emit(data[5] * 256 * 256 * 256 + data[6] * 256 * 256 + data[7] * 256 + data[8], rv_s)  
+                bsel = (0x1 << rv_s) if (rv_s != 4) else 0
+                bext = 1 if (rv_s == 4) else 0
+                data = (c_ubyte * 32)()
+                self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
+                self.return_serial_signal.emit(data[5] * 256 * 256 * 256 + data[6] * 256 * 256 + data[7] * 256 + data[8], rv_s)
+                self.Reset_SPD_page(bsel, bext)
                 
             self.finished.emit()
             
@@ -375,26 +397,26 @@ class Worker(QObject):
             bext = self.ui.board_ext_select()
             Num = c_ubyte(0)
             Num_ext = c_ubyte(0)
-            boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            #boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            boot = 0x0000000000
+            #print(f'Get_Boot Result: {Num.value}')
+            
             self.ui.spd_table_f_value = [0xFF] * 1024
             self.ui.read_SPD_file()
             
             print("--- Write SPD Start ---")
+            self.update_progress_signal.emit(0, "Writing")
             for h in range(0, 8):
                 for i in range(0, 4):
                     index = h * 128 + i * 32
                     data = (c_ubyte * 32)()
-                    for c_index, value in enumerate(self.ui.spd_table_f_value[index:index+32]):
+                    for c_index, value in enumerate(self.ui.spd_table_f_value[index:index + 32]):
                         data[c_index] = value
                     self.ui.lib.Write_Info32(pointer(self.ui.io_handle_t), bsel, bext, h, i, byref(data), byref(Num), byref(Num_ext))
-                if (Num.value != bsel):
-                    for ri in range(0, 4):
-                        if bsel & (0x1 << ri) != 0 and Num.value & (0x1 << ri) == 0:
-                            print(f'slot {ri + 1} page {h} is blocked by write protect')
-                if (Num_ext.value != bext):
-                    if bext != 0 and Num_ext.value == 0:
-                        print(f'slot {0} page {h} is blocked by write protect')
+                    time.sleep(pause_time)
+                    self.update_progress_signal.emit(int((h * 4 + i + 1) * 100 / 32), "Writing")
             
+            self.Reset_SPD_page(bsel, bext)
             print("--- Write SPD Finish ---")
                     
             self.finished.emit()
@@ -409,18 +431,22 @@ class Worker(QObject):
             bext = 1 
             Num = c_ubyte(0)
             Num_ext = c_ubyte(0)
-            boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
+            #boot = self.ui.lib.Get_Boot(pointer(self.ui.io_handle_t), bsel, bext, byref(Num), byref(Num_ext)) & 0xFFFFFFFFFF
             for rv_s in range(0, 5):
-                if ((boot >> (8 * rv_s)) & 0xFF) == 0x0:
-                    bsel = (0x1 << rv_s) if (rv_s != 4) else 0
-                    bext = 1 if (rv_s == 4) else 0
-                    data = (c_ubyte * 32)()
-                    self.ui.lib.Read_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
-                    for i in range(0, 4):
-                        data[8 - i] = (self.ui.serial_num[rv_s] >> (8 * i)) & 0xFF 
-                    self.ui.lib.Write_Info32(pointer(self.ui.io_handle_t), bsel, bext, 4, 0, byref(data), byref(Num), byref(Num_ext))
-                    #self.return_serial_signal.emit(data[5] * 256 * 256 * 256 + data[6] * 256 * 256 + data[7] * 256 + data[8], rv_s)  
-                
+                print(f'update serial {(rv_s + 1) % 5} number' )
+                bsel = (0x1 << rv_s) if (rv_s != 4) else 0
+                bext = 1 if (rv_s == 4) else 0
+                self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 11, 4, byref(Num), byref(Num_ext))
+                time.sleep(reg_pause_time)
+                self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 13, 0, byref(Num), byref(Num_ext))
+                time.sleep(pause_time)                    
+                self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 133, (self.ui.serial_num[rv_s] >> (24)) & 0xFF , byref(Num), byref(Num_ext))
+                self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 134, (self.ui.serial_num[rv_s] >> (16)) & 0xFF , byref(Num), byref(Num_ext))
+                self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 135, (self.ui.serial_num[rv_s] >> (8)) & 0xFF , byref(Num), byref(Num_ext))
+                self.ui.lib.Write_Reg(pointer(self.ui.io_handle_t), bsel, bext, 136, (self.ui.serial_num[rv_s]) & 0xFF , byref(Num), byref(Num_ext))
+                time.sleep(pause_time) 
+                    
+            self.Reset_SPD_page(bsel, bext)    
             self.finished.emit()
             
         except Exception as e:
@@ -815,7 +841,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
                     if self.lineEdit_spd.text() == "" or not self.lineEdit_spd.text():
                         reply = QMessageBox.warning(None, 'Warning', 'Please select SPD file!')
                         return
-                    self.Ui_jump_ap()
+                    #self.Ui_jump_ap()
                     self.WriteSPD() 
                 
             elif self.radioButton_offline.isChecked():
@@ -857,7 +883,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
             
     def ReadSerial(self):
-        self.text_browser.clear()
+        #self.text_browser.clear()
         if self.check_connect_board():
             self.worker = Worker(self)
             self.setup_worker_thread(self.worker.read_spd_serial)
@@ -960,6 +986,7 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             Num2 = c_ubyte(0)
             Num2_ext = c_ubyte(0) 
             boot = self.lib.Get_Boot(pointer(self.io_handle_t), bsel, bext, byref(Num2), byref(Num2_ext)) & 0xFFFFFFFFFF
+            time.sleep(pause_time)
             #print(hex(boot), Num2.value, Num2_ext.value)
             ID = 0xFF
             NumID = c_ubyte(0)
@@ -1009,8 +1036,8 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
                         label_rom.setText("Boot: APROM")
                         label_rom.setStyleSheet("color: black;")
                         
+                        data = (c_ubyte * 32)()
                         FW = self.lib.Read_Reg(pointer(self.io_handle_t), vsel, vext, 2, byref(NumID), byref(NumID_ext)) & 0xFFFFFFFFFF
-                        #print(hex(FW))
                         if (NumID.value & vsel) or (NumID_ext.value & vext):
                             label_fw.setText("FW Version: " + hex((FW >> (8 * (i - 1)))& 0xFF))
                             label_fw.setStyleSheet("color: black;")
@@ -1018,16 +1045,15 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
                             label_fw.setText("FW Version: NAN")
                             label_fw.setStyleSheet("color: gray;")
                             
-                        for j in range(0, 5):    
+                        for j in range(0, 5):
                             ID = self.lib.Read_Reg(pointer(self.io_handle_t), vsel, vext, j + 21, byref(NumID), byref(NumID_ext)) & 0xFFFFFFFFFF
-                            #print(hex(ID))
                             label_slot_info = self.__dict__[f'label_slot_{i%5}_info_{j+1}']
                             if (NumID.value & vsel) or (NumID_ext.value & vext):
                                 label_slot_info.setText(label_t[j] + hex((ID >> (8 * (i - 1)))& 0xFF))
                                 label_slot_info.setStyleSheet("color: black;")
                             else:
                                 label_slot_info.setText(label_t[j] + "NAN")
-                                label_slot_info.setStyleSheet("color: gray;")
+                                label_slot_info.setStyleSheet("color: gray;")                        
                     else:
                         frame_slot.setStyleSheet(".QFrame { border: 2px solid gray; }")
                         label_slot.setText("Not Connected")
@@ -1061,7 +1087,18 @@ class Main_Ui(QMainWindow, Ui_MainWindow):
             self.ReadSerial()
         else:
             reply = QMessageBox.warning(None, 'Warning', 'Control Board Not Connect!')
-        
+
+        '''
+        Num = c_ubyte(0)
+        Num_ext = c_ubyte(0)
+        bsel = 0xF
+        bext = 0x1
+        boot = self.lib.Get_Boot(pointer(self.io_handle_t), bsel, bext, byref(Num), byref(Num_ext))
+        data = (c_ubyte * 32)()
+        for c_index in range(0, 32):
+            data[c_index] = c_index
+        self.lib.Write_Info32(pointer(self.io_handle_t), 0xF, 0x1, 0, 0, byref(data), byref(Num), byref(Num_ext))
+        '''
     def Ui_jump_ap(self):
         self.text_browser.clear()
         if self.check_connect_board():

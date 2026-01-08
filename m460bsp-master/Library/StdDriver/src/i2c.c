@@ -7,7 +7,7 @@
  * @copyright Copyright (C) 2021 Nuvoton Technology Corp. All rights reserved.
  *****************************************************************************/
 #include "NuMicro.h"
-
+#define DEBUG
 /** @addtogroup Standard_Driver Standard Driver
   @{
 */
@@ -981,81 +981,80 @@ uint32_t* I2C_WriteMultiBytesOneReg_2(int i2c_num, int i2c_ext, I2C_T *i2c[], ui
 {
     uint8_t u8Xfering[5] = {1u, 1u, 1u, 1u, 1u}, u8Err[5] = {0u, 0u, 0u, 0u, 0u}, u8Ctrl[5] = {0u, 0u, 0u, 0u, 0u};
     uint32_t u32TimeOutCount = 0;
-			
-		u32txLen_2[0] = 0u;
-		u32txLen_2[1] = 0u;
-		u32txLen_2[2] = 0u;
-		u32txLen_2[3] = 0u;
-		u32txLen_2[4] = 0u;
-		
+
+    u32txLen_2[0] = 0u;
+    u32txLen_2[1] = 0u;
+    u32txLen_2[2] = 0u;
+    u32txLen_2[3] = 0u;
+    u32txLen_2[4] = 0u;
+    
     g_I2C_i32ErrCode = 0;
 
-		for(int i = 0; i < 4; i++){
-				if (((0x1 << i) & i2c_num) != 0) I2C_START(i2c[i]);
-		}
-		if ((0x1 & i2c_ext) != 0) I2C_START(i2c[4]);
+    for(int i = 0; i < 4; i++){
+        if (((0x1 << i) & i2c_num) != 0) I2C_START(i2c[i]);
+    }
+    if ((0x1 & i2c_ext) != 0) I2C_START(i2c[4]);
 
     while((u8Xfering[0] && (u8Err[0] == 0u) && (((0x1) & i2c_num) != 0))||(u8Xfering[1] && (u8Err[1] == 0u) && (((0x2) & i2c_num) != 0))
-				||(u8Xfering[2] && (u8Err[2] == 0u) && (((0x4) & i2c_num) != 0))||(u8Xfering[3] && (u8Err[3] == 0u) && (((0x8) & i2c_num) != 0))
-				||(u8Xfering[4] && (u8Err[4] == 0u) && (((0x1) & i2c_ext) != 0)))
+        ||(u8Xfering[2] && (u8Err[2] == 0u) && (((0x4) & i2c_num) != 0))||(u8Xfering[3] && (u8Err[3] == 0u) && (((0x8) & i2c_num) != 0))
+        ||(u8Xfering[4] && (u8Err[4] == 0u) && (((0x1) & i2c_ext) != 0)))
     {
         u32TimeOutCount = I2C_TIMEOUT;
-			
-				while((!((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_num) != 0))||
-							(!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0))||
-							(!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0))||
-							(!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0))||
-							(!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)))
-				{
-						if(--u32TimeOutCount == 0)
-						{
-								g_I2C_i32ErrCode = I2C_ERR_TIMEOUT;
-								if (!((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_num) != 0)) u8Err[0] = 1u;
-								if (!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0)) u8Err[1] = 1u;
-								if (!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0)) u8Err[2] = 1u;
-								if (!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0)) u8Err[3] = 1u;
-								if (!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)) u8Err[4] = 1u;
-								break;
-						}
-				}
+        while((!((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_num) != 0))||
+              (!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0))||
+              (!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0))||
+              (!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0))||
+              (!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)))
+        {
+            if(--u32TimeOutCount == 0)
+            {
+                g_I2C_i32ErrCode = I2C_ERR_TIMEOUT;
+                if (!((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_num) != 0)) u8Err[0] = 1u;
+                if (!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0)) u8Err[1] = 1u;
+                if (!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0)) u8Err[2] = 1u;
+                if (!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0)) u8Err[3] = 1u;
+                if (!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)) u8Err[4] = 1u;
+                break;
+            }
+        }
 
-				for(int i = 0; i < 5; i++){
-					if ((i < 4 && (((0x1 << i) & i2c_num) != 0)) || ((i == 4) && ((0x1 & i2c_ext) != 0))){
-						switch(I2C_GET_STATUS(i2c[i]))
-						{
-						case 0x08u:
-								I2C_SET_DATA(i2c[i], (uint8_t)(u8SlaveAddr[i] << 1u | 0x00u));    /* Write SLA+W to Register I2CDAT */
-								u8Ctrl[i] = I2C_CTL_SI;
-								break;
-						case 0x18u:                                           /* Slave Address ACK */
-								I2C_SET_DATA(i2c[i], u8DataAddr);                   /* Write Lo byte address of register */
-								break;
-						case 0x20u:                                           /* Slave Address NACK */
-						case 0x30u:                                           /* Master transmit data NACK */
-								u8Ctrl[i] = I2C_CTL_STO_SI;                       /* Clear SI and send STOP */
-								u8Err[i] = 1u;
-								break;
-						case 0x28u:
-								if(u32txLen_2[i] < u32wLen)
-								{
-										I2C_SET_DATA(i2c[i], data[u32txLen_2[i]++]);
-								}
-								else
-								{
-										u8Ctrl[i] = I2C_CTL_STO_SI;                   /* Clear SI and send STOP */
-										u8Xfering[i] = 0u;
-								}
-								break;
-						case 0x38u:                                           /* Arbitration Lost */
-						default:                                             /* Unknow status */
-								I2C_SET_CONTROL_REG(i2c[i], I2C_CTL_STO_SI);        /* Clear SI and send STOP */
-								u8Ctrl[i] = I2C_CTL_SI;
-								u8Err[i] = 1u;
-								break;
-						}
-						I2C_SET_CONTROL_REG(i2c[i], u8Ctrl[i]);    /* Write controlbit to I2C_CTL register */
-				}
-			}
+        for(int i = 0; i < 5; i++){
+            if ((i < 4 && (((0x1 << i) & i2c_num) != 0)) || ((i == 4) && ((0x1 & i2c_ext) != 0))){
+                switch(I2C_GET_STATUS(i2c[i]))
+                {
+                case 0x08u:
+                    I2C_SET_DATA(i2c[i], (uint8_t)(u8SlaveAddr[i] << 1u | 0x00u));    /* Write SLA+W to Register I2CDAT */
+                    u8Ctrl[i] = I2C_CTL_SI;
+                    break;
+                case 0x18u:                                           /* Slave Address ACK */
+                    I2C_SET_DATA(i2c[i], u8DataAddr);                   /* Write Lo byte address of register */
+                    break;
+                case 0x20u:                                           /* Slave Address NACK */
+                case 0x30u:                                           /* Master transmit data NACK */
+                    u8Ctrl[i] = I2C_CTL_STO_SI;                       /* Clear SI and send STOP */
+                    u8Err[i] = 1u;
+                    break;
+                case 0x28u:
+                    if(u32txLen_2[i] < u32wLen)
+                    {
+                        I2C_SET_DATA(i2c[i], data[u32txLen_2[i]++]);
+                    }
+                    else
+                    {
+                        u8Ctrl[i] = I2C_CTL_STO_SI;                   /* Clear SI and send STOP */
+                        u8Xfering[i] = 0u;
+                    }
+                    break;
+                case 0x38u:                                           /* Arbitration Lost */
+                default:                                             /* Unknow status */
+                    I2C_SET_CONTROL_REG(i2c[i], I2C_CTL_STO_SI);        /* Clear SI and send STOP */
+                    u8Ctrl[i] = I2C_CTL_SI;
+                    u8Err[i] = 1u;
+                    break;
+                }
+            I2C_SET_CONTROL_REG(i2c[i], u8Ctrl[i]);    /* Write controlbit to I2C_CTL register */
+            }
+        }
     }
 
     return u32txLen_2;                                             /* Return bytes length that have been transmitted */
@@ -1552,102 +1551,355 @@ uint32_t u32rxLen_2[5] = {0u, 0u, 0u, 0u, 0u};
 uint32_t* I2C_ReadMultiBytesOneReg_2(int i2c_num, int i2c_ext, I2C_T *i2c[], uint8_t u8SlaveAddr[], uint8_t u8DataAddr, uint8_t* rdata[], uint32_t u32rLen)
 {
     uint8_t u8Xfering[5] = {1u, 1u, 1u, 1u, 1u}, u8Err[5] = {0u, 0u, 0u, 0u, 0u}, u8Ctrl[5] = {0u, 0u, 0u, 0u, 0u};
-    uint32_t u32TimeOutCount = 0u;
-		
-		u32rxLen_2[0] = 0u;
-		u32rxLen_2[1] = 0u;
-		u32rxLen_2[2] = 0u;
-		u32rxLen_2[3] = 0u;
-		u32rxLen_2[4] = 0u;
-		
+    uint32_t u32TimeOutCount = 0u;	
+
+    u32rxLen_2[0] = 0u;
+    u32rxLen_2[1] = 0u;
+    u32rxLen_2[2] = 0u;
+    u32rxLen_2[3] = 0u;
+    u32rxLen_2[4] = 0u;
+    
     g_I2C_i32ErrCode = 0;
 
     for(int i = 0; i < 4; i++){
-				if (((0x1 << i) & i2c_num) != 0) I2C_START(i2c[i]);
+        if (((0x1 << i) & i2c_num) != 0) 
+				{
+						I2C_START(i2c[i]);
+				}
+    }
+    if (((0x1) & i2c_ext) != 0) {
+				I2C_START(i2c[4]);
 		}
-		if (((0x1) & i2c_ext) != 0) I2C_START(i2c[4]);
 
     while((u8Xfering[0] && (u8Err[0] == 0u) && (((0x1) & i2c_num) != 0))||(u8Xfering[1] && (u8Err[1] == 0u) && (((0x2) & i2c_num) != 0))
-				||(u8Xfering[2] && (u8Err[2] == 0u) && (((0x4) & i2c_num) != 0))||(u8Xfering[3] && (u8Err[3] == 0u) && (((0x8) & i2c_num) != 0))
-				||(u8Xfering[4] && (u8Err[4] == 0u) && (((0x1) & i2c_ext) != 0)))
+        ||(u8Xfering[2] && (u8Err[2] == 0u) && (((0x4) & i2c_num) != 0))||(u8Xfering[3] && (u8Err[3] == 0u) && (((0x8) & i2c_num) != 0))
+        ||(u8Xfering[4] && (u8Err[4] == 0u) && (((0x1) & i2c_ext) != 0)))
     {
         u32TimeOutCount = I2C_TIMEOUT;
         while((!((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_num) != 0))||
-							(!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0))||
-							(!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0))||
-							(!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0))||
-							(!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)))
-				{
+                (!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0))||
+                (!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0))||
+                (!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0))||
+                (!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)))
+        {
             if(--u32TimeOutCount == 0)
             {
                 g_I2C_i32ErrCode = I2C_ERR_TIMEOUT;
                 if (!((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_num) != 0)) u8Err[0] = 1u;
-								if (!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0)) u8Err[1] = 1u;
-								if (!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0)) u8Err[2] = 1u;
-								if (!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0)) u8Err[3] = 1u;
-								if (!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)) u8Err[4] = 1u;
+                if (!((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && (((0x2) & i2c_num) != 0)) u8Err[1] = 1u;
+                if (!((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && (((0x4) & i2c_num) != 0)) u8Err[2] = 1u;
+                if (!((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && (((0x8) & i2c_num) != 0)) u8Err[3] = 1u;
+                if (!((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && (((0x1) & i2c_ext) != 0)) u8Err[4] = 1u;
                 break;
             }
         }
 
         for(int i = 0; i < 5; i++){
-					if ((i < 4 && (((0x1 << i) & i2c_num) != 0)) || ((i == 4) && ((0x1 & i2c_ext) != 0))){
-						switch(I2C_GET_STATUS(i2c[i]))
-						{
-						case 0x08u:
-								I2C_SET_DATA(i2c[i], (uint8_t)(u8SlaveAddr[i] << 1u | 0x00u));      /* Write SLA+W to Register I2CDAT */
-								u8Ctrl[i] = I2C_CTL_SI;                             /* Clear SI */
-								break;
+            if ((i < 4 && (((0x1 << i) & i2c_num) != 0)) || ((i == 4) && ((0x1 & i2c_ext) != 0))){
+            switch(I2C_GET_STATUS(i2c[i]))
+            {
+            case 0x08u:
+                I2C_SET_DATA(i2c[i], (uint8_t)(u8SlaveAddr[i] << 1u | 0x00u)); /* SLA+W */
+                u8Ctrl[i] = I2C_CTL_SI;
+                break;
 						case 0x18u:                                             /* Slave Address ACK */
-								I2C_SET_DATA(i2c[i], u8DataAddr);                     /* Write Lo byte address of register */
-								break;
-						case 0x20u:                                             /* Slave Address NACK */
-						case 0x30u:                                             /* Master transmit data NACK */
-								u8Ctrl[i] = I2C_CTL_STO_SI;                         /* Clear SI and send STOP */
-								u8Err[i] = 1u;
-								break;
-						case 0x28u:
+                I2C_SET_DATA(i2c[i], u8DataAddr);                     /* Write Lo byte address of register */
+                break;
+            case 0x20u:                                             /* Slave Address NACK */
+            case 0x30u:                                             /* Master transmit data NACK */
+                u8Ctrl[i] = I2C_CTL_STO_SI;                         /* Clear SI and send STOP */
+                u8Err[i] = 1u;
+                break;
+            case 0x28u:
 								u8Ctrl[i] = I2C_CTL_STA_SI;                         /* Send repeat START */
 								break;
-						case 0x10u:
-								I2C_SET_DATA(i2c[i], (uint8_t)((u8SlaveAddr[i] << 1u) | 0x01u));    /* Write SLA+R to Register I2CDAT */
-								u8Ctrl[i] = I2C_CTL_SI;                             /* Clear SI */
-								break;
-						case 0x40u:                                             /* Slave Address ACK */
-								u8Ctrl[i] = I2C_CTL_SI_AA;                          /* Clear SI and set ACK */
-								break;
-						case 0x48u:                                             /* Slave Address NACK */
-								u8Ctrl[i] = I2C_CTL_STO_SI;                         /* Clear SI and send STOP */
-								u8Err[i] = 1u;
-								break;
-						case 0x50u:
-								rdata[i][u32rxLen_2[i]++] = (uint8_t) I2C_GET_DATA(i2c[i]);   /* Receive Data */
-								if(u32rxLen_2[i] < (u32rLen - 1u))
-								{
-										u8Ctrl[i] = I2C_CTL_SI_AA;                      /* Clear SI and set ACK */
-								}
-								else
-								{
-										u8Ctrl[i] = I2C_CTL_SI;                         /* Clear SI */
-								}
-								break;
-						case 0x58u:
-								rdata[i][u32rxLen_2[i]++] = (uint8_t) I2C_GET_DATA(i2c[i]);   /* Receive Data */
-								u8Ctrl[i] = I2C_CTL_STO_SI;                         /* Clear SI and send STOP */
-								u8Xfering[i] = 0u;
-								break;
-						case 0x38u:                                             /* Arbitration Lost */
-						default:                                               /* Unknow status */
-								I2C_SET_CONTROL_REG(i2c[i], I2C_CTL_STO_SI);        /* Clear SI and send STOP */
-								u8Ctrl[i] = I2C_CTL_SI;
-								u8Err[i] = 1u;
-								break;
-						}
-						I2C_SET_CONTROL_REG(i2c[i], u8Ctrl[i]);                          /* Write controlbit to I2C_CTL register */
-				}
-			}                                             /* Return bytes length that have been received */
-		}
-	return u32rxLen_2; 
+            case 0x10u:
+                I2C_SET_DATA(i2c[i], (uint8_t)((u8SlaveAddr[i] << 1u) | 0x01u));    /* Write SLA+R to Register I2CDAT */
+                u8Ctrl[i] = I2C_CTL_SI;                             /* Clear SI */
+                break;
+            case 0x40u:                                             /* Slave Address ACK */
+                u8Ctrl[i] = I2C_CTL_SI_AA;                          /* Clear SI and set ACK */
+                break;
+            case 0x48u:                                             /* Slave Address NACK */
+                u8Ctrl[i] = I2C_CTL_STO_SI;                         /* Clear SI and send STOP */
+                u8Err[i] = 1u;
+                break;
+            case 0x50u:
+                rdata[i][u32rxLen_2[i]++] = (uint8_t) I2C_GET_DATA(i2c[i]);   /* Receive Data */
+                if(u32rxLen_2[i] < (u32rLen - 1u))
+                {
+                    u8Ctrl[i] = I2C_CTL_SI_AA;                      /* Clear SI and set ACK */
+                }
+                else
+                {
+                    u8Ctrl[i] = I2C_CTL_SI;                         /* Clear SI */
+                }
+                break;
+            case 0x58u:
+                rdata[i][u32rxLen_2[i]++] = (uint8_t) I2C_GET_DATA(i2c[i]);   /* Receive Data */
+                u8Ctrl[i] = I2C_CTL_STO_SI;                         /* Clear SI and send STOP */
+                u8Xfering[i] = 0u;
+                break;
+            case 0x38u:                                             /* Arbitration Lost */
+            default:                                               /* Unknow status */
+                I2C_SET_CONTROL_REG(i2c[i], I2C_CTL_STO_SI);        /* Clear SI and send STOP */
+                u8Ctrl[i] = I2C_CTL_SI;
+                u8Err[i] = 1u;
+                break;
+            }
+            I2C_SET_CONTROL_REG(i2c[i], u8Ctrl[i]);                          /* Write controlbit to I2C_CTL register */
+        }
+        }                                             /* Return bytes length that have been received */
+    }
+    return u32rxLen_2; 
+}
+
+uint32_t* I2C_ReadMultiBytesOneReg_STOP(int i2c_num, int i2c_ext, I2C_T *i2c[], uint8_t u8SlaveAddr[], uint8_t u8DataAddr, uint8_t* rdata[], uint32_t u32rLen)
+{
+    uint8_t u8Xfering[5] = {1u, 1u, 1u, 1u, 1u}, u8Err[5] = {0u, 0u, 0u, 0u, 0u}, u8Ctrl[5] = {0u, 0u, 0u, 0u, 0u};
+    uint32_t u32TimeOutCount = 0u;
+
+    u32rxLen_2[0] = 0u;
+    u32rxLen_2[1] = 0u;
+    u32rxLen_2[2] = 0u;
+    u32rxLen_2[3] = 0u;
+    u32rxLen_2[4] = 0u;
+    
+    g_I2C_i32ErrCode = 0;
+    
+    uint8_t  phase[5]     = {0u, 0u, 0u, 0u, 0u};
+    uint8_t  need_start_after_stop[5] = {0u, 0u, 0u, 0u, 0u};
+    
+    for(int i = 0; i < 4; i++){
+        if (((0x1 << i) & i2c_num) != 0) 
+        {
+            I2C_START(i2c[i]);
+        }
+    }
+    if (((0x1) & i2c_ext) != 0) {
+        I2C_START(i2c[4]);
+    }
+
+    while ( (u8Xfering[0] && (u8Err[0] == 0u) && ((i2c_num & 0x1) != 0)) ||
+            (u8Xfering[1] && (u8Err[1] == 0u) && ((i2c_num & 0x2) != 0)) ||
+            (u8Xfering[2] && (u8Err[2] == 0u) && ((i2c_num & 0x4) != 0)) ||
+            (u8Xfering[3] && (u8Err[3] == 0u) && ((i2c_num & 0x8) != 0)) ||
+            (u8Xfering[4] && (u8Err[4] == 0u) && ((i2c_ext & 0x1) != 0)) )
+    {
+        u32TimeOutCount = I2C_TIMEOUT;
+
+        while ( ( !((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x1) != 0) ) ||
+                ( !((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x2) != 0) ) ||
+                ( !((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x4) != 0) ) ||
+                ( !((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x8) != 0) ) ||
+                ( !((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_ext & 0x1) != 0) ) )
+        {
+            if (--u32TimeOutCount == 0u) {
+                g_I2C_i32ErrCode = I2C_ERR_TIMEOUT;
+                if ( !((i2c[0])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x1) != 0) ) u8Err[0] = 1u;
+                if ( !((i2c[1])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x2) != 0) ) u8Err[1] = 1u;
+                if ( !((i2c[2])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x4) != 0) ) u8Err[2] = 1u;
+                if ( !((i2c[3])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_num & 0x8) != 0) ) u8Err[3] = 1u;
+                if ( !((i2c[4])->CTL0 & I2C_CTL0_SI_Msk) && ((i2c_ext & 0x1) != 0) ) u8Err[4] = 1u;
+                break;
+            }
+        }
+
+        for (int i = 0; i < 5; i++) {
+            if (!((i < 4 && ((i2c_num & (1 << i)) != 0)) || (i == 4 && ((i2c_ext & 0x1) != 0))))
+                continue;
+
+            u8Ctrl[i] = I2C_CTL_SI;
+
+            switch (I2C_GET_STATUS(i2c[i]))
+            {
+            case 0x08u: 
+                if (phase[i] == 0u) {
+                    /* phase0: SLA+W */
+                    I2C_SET_DATA(i2c[i], (uint8_t)((u8SlaveAddr[i] << 1u) | 0x00u));
+                } else {
+                    /* phase1: SLA+R */
+                    I2C_SET_DATA(i2c[i], (uint8_t)((u8SlaveAddr[i] << 1u) | 0x01u));
+                }
+                u8Ctrl[i] = I2C_CTL_SI;
+                break;
+
+            case 0x18u: /* SLA+W ACK */
+                I2C_SET_DATA(i2c[i], u8DataAddr);
+                u8Ctrl[i] = I2C_CTL_SI;
+                break;
+
+            case 0x28u: 
+                if (phase[i] == 0u) {
+                    u8Ctrl[i] = I2C_CTL_STO_SI;
+                    phase[i] = 1u;                    
+                    need_start_after_stop[i] = 1u;    
+                } else {
+                    u8Ctrl[i] = I2C_CTL_STO_SI;
+                    u8Err[i] = 1u;
+                }
+                break;
+
+            case 0x20u: /* SLA+W NACK */
+            case 0x30u: /* data NACK */
+                u8Ctrl[i] = I2C_CTL_STO_SI;
+                u8Err[i] = 1u;
+                break;
+
+            case 0x40u: /* SLA+R ACK */
+                if (u32rLen > 1u) u8Ctrl[i] = I2C_CTL_SI_AA;
+                else              u8Ctrl[i] = I2C_CTL_SI; /* NACK next (single byte) */
+                break;
+
+            case 0x48u: /* SLA+R NACK */
+                u8Ctrl[i] = I2C_CTL_STO_SI;
+                u8Err[i] = 1u;
+                break;
+
+            case 0x50u: /* data received, ACK returned */
+                rdata[i][u32rxLen_2[i]++] = (uint8_t)I2C_GET_DATA(i2c[i]);
+                if (u32rxLen_2[i] < (u32rLen - 1u)) u8Ctrl[i] = I2C_CTL_SI_AA;
+                else                                u8Ctrl[i] = I2C_CTL_SI; /* next byte NACK */
+                break;
+
+            case 0x58u: /* data received, NACK returned */
+                rdata[i][u32rxLen_2[i]++] = (uint8_t)I2C_GET_DATA(i2c[i]);
+                u8Ctrl[i] = I2C_CTL_STO_SI;
+                u8Xfering[i] = 0u;
+                break;
+
+            case 0x38u: /* arbitration lost */
+            default:
+                I2C_SET_CONTROL_REG(i2c[i], I2C_CTL_STO_SI);
+                u8Ctrl[i] = I2C_CTL_SI;
+                u8Err[i] = 1u;
+                break;
+            }
+
+            I2C_SET_CONTROL_REG(i2c[i], u8Ctrl[i]);
+        }
+
+        for (int i = 0; i < 5; i++) {
+
+            if (!need_start_after_stop[i]) continue;
+            if (!((i < 4 && ((i2c_num & (1 << i)) != 0)) || (i == 4 && ((i2c_ext & 0x1) != 0))))
+                continue;
+
+            uint32_t to = I2C_TIMEOUT;
+
+            while ((i2c[i]->CTL0 & I2C_CTL0_STO_Msk) && --to) { }
+            if (to == 0u) {
+                g_I2C_i32ErrCode = I2C_ERR_TIMEOUT;
+                u8Err[i] = 1u;
+                need_start_after_stop[i] = 0u;
+                continue;
+            }
+
+            need_start_after_stop[i] = 0u;
+						
+						CLK_SysTickDelay(1000);
+            I2C_START(i2c[i]);
+        }
+    }
+
+    return u32rxLen_2;
+}
+
+uint32_t* I2C_ReadOnly_OneReg_2(int i2c_num, int i2c_ext, I2C_T *i2c[], uint8_t u8SlaveAddr[], uint8_t* rdata[], uint32_t u32rLen)
+{
+    uint8_t u8Xfering[5] = {1u, 1u, 1u, 1u, 1u}, u8Err[5] = {0u, 0u, 0u, 0u, 0u}, u8Ctrl[5] = {0u, 0u, 0u, 0u, 0u};
+    uint32_t u32TimeOutCount = 0u;
+
+    // reset rx length counters
+    for (int i = 0; i < 5; i++) {
+        u32rxLen_2[i] = 0u;
+    }
+
+    g_I2C_i32ErrCode = 0;
+
+    for (int i = 0; i < 4; i++) {
+        if ((i2c_num & (1 << i)) != 0)
+            I2C_START(i2c[i]); // Send S
+    }
+    if ((i2c_ext & 0x1) != 0)
+        I2C_START(i2c[4]);
+
+    while ((u8Xfering[0] && !u8Err[0] && (i2c_num & 0x1)) ||
+           (u8Xfering[1] && !u8Err[1] && (i2c_num & 0x2)) ||
+           (u8Xfering[2] && !u8Err[2] && (i2c_num & 0x4)) ||
+           (u8Xfering[3] && !u8Err[3] && (i2c_num & 0x8)) ||
+           (u8Xfering[4] && !u8Err[4] && (i2c_ext & 0x1)))
+    {
+        u32TimeOutCount = I2C_TIMEOUT;
+        while (((i2c[0]->CTL0 & I2C_CTL0_SI_Msk) == 0 && (i2c_num & 0x1)) ||
+               ((i2c[1]->CTL0 & I2C_CTL0_SI_Msk) == 0 && (i2c_num & 0x2)) ||
+               ((i2c[2]->CTL0 & I2C_CTL0_SI_Msk) == 0 && (i2c_num & 0x4)) ||
+               ((i2c[3]->CTL0 & I2C_CTL0_SI_Msk) == 0 && (i2c_num & 0x8)) ||
+               ((i2c[4]->CTL0 & I2C_CTL0_SI_Msk) == 0 && (i2c_ext & 0x1)))
+        {
+            if (--u32TimeOutCount == 0) {
+                g_I2C_i32ErrCode = I2C_ERR_TIMEOUT;
+                for (int i = 0; i < 5; i++) {
+                    if ( ((i < 4) && (i2c_num & (1 << i))) ||
+                         ((i == 4) && (i2c_ext & 1)) ) {
+                        u8Err[i] = 1u;
+                    }
+                }
+                break;
+            }
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            if (!(((i < 4) && (i2c_num & (1 << i))) ||
+                  ((i == 4) && (i2c_ext & 1))))
+                continue;
+
+            switch (I2C_GET_STATUS(i2c[i]))
+            {
+                case 0x08u:
+                    I2C_SET_DATA(i2c[i], (uint8_t)((u8SlaveAddr[i] << 1) | 0x01u)); // SLA+R
+                    u8Ctrl[i] = I2C_CTL_SI;
+                    break;
+
+                case 0x40u:
+                    u8Ctrl[i] = (u32rLen > 1) ? I2C_CTL_SI_AA : I2C_CTL_SI; 
+                    break;
+
+                case 0x48u:
+                    // SLA+R NACK ? STOP
+                    u8Ctrl[i] = I2C_CTL_STO_SI;
+                    u8Err[i] = 1u;
+                    break;
+
+                case 0x50u:
+                    // Data received & ACK returned
+                    rdata[i][u32rxLen_2[i]++] = I2C_GET_DATA(i2c[i]);
+
+                    if (u32rxLen_2[i] < (u32rLen - 1))
+                        u8Ctrl[i] = I2C_CTL_SI_AA;  // Continue reading
+                    else
+                        u8Ctrl[i] = I2C_CTL_SI;     // Next byte is last
+                    break;
+
+                case 0x58u:
+                    rdata[i][u32rxLen_2[i]++] = I2C_GET_DATA(i2c[i]);
+                    u8Ctrl[i] = I2C_CTL_STO_SI;  // STOP
+                    u8Xfering[i] = 0u;
+                    break;
+
+                default:
+                    I2C_SET_CONTROL_REG(i2c[i], I2C_CTL_STO_SI);
+                    u8Ctrl[i] = I2C_CTL_SI;
+                    u8Err[i] = 1u;
+                    break;
+            }
+
+            I2C_SET_CONTROL_REG(i2c[i], u8Ctrl[i]);
+        }
+    }
+
+    return u32rxLen_2;
 }
 
 /**

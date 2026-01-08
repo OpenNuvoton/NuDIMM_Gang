@@ -1,2 +1,2 @@
-int32_t I2C_Read_Write(int I2c_num, int I2c_ext, uint8_t u8SlvAddr[4], uint8_t u8DataAddr, uint8_t *I2C_TxData, uint8_t **I2C_RxData, int tx_length, int rx_length);
+int32_t I2C_Read_Write(int I2c_num, int I2c_ext, uint8_t u8SlvAddr[4], uint8_t u8DataAddr, uint8_t *I2C_TxData, uint8_t **I2C_RxData, int tx_length, int rx_length, int need_stop);
 uint8_t i2c_address_acknowledged(int I2c_num, uint8_t u8SlaveAddr);

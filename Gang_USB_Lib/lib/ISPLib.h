@@ -23,9 +23,9 @@
 #define CMD_VERIFY_CHECKSUM     (unsigned char)0xD0
 #define CMD_WRITE_REG           (unsigned char)0xE0
 
-#define USBCMD_TIMEOUT              300000
-#define USBCMD_TIMEOUT_LONG         3000000
-#define I2CCMD_TIMEOUT              45000000
+#define USBCMD_TIMEOUT              1000000
+#define USBCMD_TIMEOUT_LONG        10000000
+#define I2CCMD_TIMEOUT           1000000000
 
 #define FALSE   0
 #define TRUE    1
@@ -99,7 +99,8 @@ DLL_EXPORT  unsigned int Write_Info32(io_handle_t* handle, unsigned char bsel, u
                                       unsigned char* ext);
 DLL_EXPORT  unsigned int Write_Reg(io_handle_t* handle, unsigned char bsel, unsigned char bext,
                                    unsigned char reg, unsigned char write_value, unsigned char* Num, unsigned char* ext);
-
+DLL_EXPORT  unsigned int Write_Reg_2byte(io_handle_t* handle, unsigned char bsel, unsigned char bext,
+                                   unsigned char reg, unsigned char write_value_1, unsigned char write_value_2, unsigned char* Num, unsigned char* ext);
 DLL_EXPORT  unsigned int ISP_Read_Config(io_handle_t* handle, unsigned int config[]);
 DLL_EXPORT  unsigned int ISP_Erase_DataFlash(io_handle_t* handle);
 DLL_EXPORT  unsigned int ISP_Read_DataFlash(io_handle_t* handle, unsigned short dcount,

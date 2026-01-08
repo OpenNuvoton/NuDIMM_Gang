@@ -296,12 +296,29 @@ unsigned long long int Read_Reg(io_handle_t* handle, unsigned char bsel, unsigne
 unsigned int Write_Reg(io_handle_t* handle, unsigned char bsel, unsigned char bext,
                        unsigned char reg, unsigned char write_value, unsigned char* Num, unsigned char* ext)
 {
-    unsigned char acBuffer[2];
+    unsigned char acBuffer[4];
     acBuffer[0] = reg;
     acBuffer[1] = write_value;
+    acBuffer[2] = 0;
+    acBuffer[3] = 0;
     unsigned int ret = FALSE;
     unsigned long long int reg_result = 0;
-    ret = ISP_Write(handle, CMD_WRITE_REG + bsel, bext, acBuffer, 2, I2CCMD_TIMEOUT);
+    ret = ISP_Write(handle, CMD_WRITE_REG + bsel, bext, acBuffer, 4, I2CCMD_TIMEOUT);
+    ISP_Read(handle, NULL, 0, I2CCMD_TIMEOUT, Num, ext);
+    return ret;
+}
+
+unsigned int Write_Reg_2byte(io_handle_t* handle, unsigned char bsel, unsigned char bext,
+    unsigned char reg, unsigned char write_value_1, unsigned char write_value_2, unsigned char* Num, unsigned char* ext)
+{
+    unsigned char acBuffer[4];
+    acBuffer[0] = reg;
+    acBuffer[1] = write_value_1;
+    acBuffer[2] = 1;
+    acBuffer[3] = write_value_2;
+    unsigned int ret = FALSE;
+    unsigned long long int reg_result = 0;
+    ret = ISP_Write(handle, CMD_WRITE_REG + bsel, bext, acBuffer, 4, I2CCMD_TIMEOUT);
     ISP_Read(handle, NULL, 0, I2CCMD_TIMEOUT, Num, ext);
     return ret;
 }
@@ -341,7 +358,7 @@ unsigned long long int Verify_APROM_Checksum(io_handle_t* handle, unsigned char 
     unsigned char acBuffer[4];
     memcpy(&acBuffer[0], &crc32_checksum, 4);
     //printf("Checksum = %d\n", crc32_checksum);
-    ISP_Write(handle, CMD_VERIFY_CHECKSUM + bsel, bext, acBuffer, 4, 5 * I2CCMD_TIMEOUT);
+    ISP_Write(handle, CMD_VERIFY_CHECKSUM + bsel, bext, acBuffer, 4, 4 * I2CCMD_TIMEOUT);
     ISP_Read(handle, (unsigned char*)&verify, 5, USBCMD_TIMEOUT, NULL, NULL);
     return verify;
 }

@@ -282,7 +282,7 @@ void update_lcd(void){
 		if (view_mode == 0){			
 			ssd1306_Fill(Black);
 			ssd1306_SetCursor(2, 0);
-			ssd1306_WriteString("NUDIMM_GANG V1.09", Font_6x8, White);
+			ssd1306_WriteString("NUDIMM_GANG V1.10", Font_6x8, White);
 			char str_buffer[64] = {0};
 			const char *word;
 			switch (target_cmd) {

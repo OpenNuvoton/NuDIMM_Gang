@@ -16,9 +16,10 @@
 #include "targetdev.h"
 
 // -----------DEBUG-------------
-//uint32_t verify_value[5] = {0x0, 0x0, 0x0, 0x0, 0x0};
 
 // -----------DEBUG-------------
+#define DEBUG
+#define i2c_delay 3000
 
 uint8_t g_au8ResponseBuff[PACK_SIZE];
 
@@ -43,6 +44,7 @@ extern int view_mode;
 extern unsigned char st[1024];
 
 static  uint8_t  Verify_Data[65];
+static  uint8_t  isNuvoton = 0;
 
 uint32_t u32Data[PACK_SIZE / 4];
 void check_boot(void);
@@ -247,7 +249,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				{
 						I2C_TxData[j] = inpb(pu8Src + j);
 				}
-				ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x80, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 7, 0);
+				ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x80, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 7, 0, 1);
 				light_ctrl = 0x7FFF;
 				pu8Response[3] = I2C_num;
 				pu8Response[2] = I2C_ext;
@@ -288,7 +290,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 
 				while(total_length > 0){
 						//printf("total_length = %d, head = %d\n", total_length, inpb(pu8Src));
-						CLK_SysTickDelay(50);
+						CLK_SysTickDelay(i2c_delay);
 						dcount = (total_length > 56) ? 56 : total_length;
 						I2C_TxData[0] = dcount + 5;
 						I2C_TxData[1] = dcount;
@@ -297,7 +299,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 								I2C_TxData[j + 6] = inpb(pu8Src + j);
 						}
 						//printf("write_addr = %d, dcount = %d\n", write_addr, dcount);
-						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x81, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, dcount + 6, 0);
+						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x81, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, dcount + 6, 0, 1);
 						total_length -= dcount;
 						write_addr += dcount;
 						pu8Src += dcount;
@@ -340,7 +342,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 						I2C_TxData[0] = 5;
 						I2C_TxData[1] = dcount;
 						memcpy(&I2C_TxData[2], &read_addr, 4);
-						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0xA1, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 6, 64);
+						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0xA1, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 6, 64, 1);
 						for (int i = 0 ; i < MAX_PORT ; i++){
 								if((i < 4 && (((0x1 << i) & I2C_num) != 0)) || ((i == 4) && ((0x1 & I2C_ext) != 0))){
 										for (int j = 0; j < 60; j++){
@@ -383,8 +385,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				for(int i = 0 ; i < 40; i++){
 						CLK_SysTickDelay(50000);
 				}
-				I2C_ReadMultiBytesOneReg_2(I2C_num, I2C_ext, I2C_PORT, port_boot_addr, 0xA4, I2C_RxData, 4);
-				//debug(ret, I2C_RxData[0][0], I2C_RxData[0][1]);
+				I2C_ReadMultiBytesOneReg_STOP(I2C_num, I2C_ext, I2C_PORT, port_boot_addr, 0xA4, I2C_RxData, 4);
 				for (int i = 0; i < MAX_PORT; i++){
 						if((i < 4 && (((0x1 << i) & I2C_num) != 0)) || ((i == 4) && ((0x1 & I2C_ext) != 0))){
 								uint32_t result_crc32 = 0;
@@ -420,7 +421,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 								I2C_ext = 1;
 						}
 				}
-				int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0xE0, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+				int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0xE0, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, 1);
 				pu8Response[3] = I2C_num;
 				for (int i = 0 ; i < MAX_PORT ; i++){
 						pu8Response[4 + i] = I2C_RxData[i][0];
@@ -461,7 +462,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 								}
 						}
 						I2C_TxData[0] = inpb(pu8Src);
-						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 				}
 				else if (inpb(pu8Src) == 0x1){
 						for(int i = 0 ; i < MAX_PORT ; i++){
@@ -472,7 +473,7 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 										I2C_ext = 1;
 								}
 						}
-						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x3, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+						ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x3, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, 1);
 						uint8_t I2C_num_2 = 0;
 						uint8_t I2C_ext_2 = 0;
 						for (int i = 0 ; i < 4 ; i++){
@@ -484,9 +485,9 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 								I2C_ext_2 = 1;
 						}
 						I2C_TxData[0] = 0x4c;
-						ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 0);
 						I2C_TxData[0] = 0x4a;
-						ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 0);
 						
 				}
 				pu8Response[2] = 0;
@@ -497,15 +498,15 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				uint8_t I2C_num = 0;
 				uint8_t I2C_ext = 0;
 				for(int i = 0 ; i < MAX_PORT ; i++){
-						if (i != 4 && (u8Lcmd & (0x01 << i)) != 0x0 && port_boot_state[i] == 0x0){
+						if (i != 4 && (u8Lcmd & (0x01 << i)) != 0x0){
 								I2C_num |= (0x01 << i);
 						}
-						else if (i == 4 && u8Lext != 0x0 && port_boot_state[i] == 0x0){
+						else if (i == 4 && u8Lext != 0x0){
 								I2C_ext = 1;
 						}
 				}				
 				uint8_t reg = inpb(pu8Src);
-				int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+				int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, isNuvoton);
 				pu8Response[3] = I2C_num;
 				for (int i = 0 ; i < MAX_PORT ; i++){		
 						pu8Response[4 + i] = I2C_RxData[i][0];
@@ -536,13 +537,15 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				offset = inpb(pu8Src + 1);
 				if (offset == 0x0){
 						I2C_TxData[0] = pagecnt;
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, isNuvoton);
+						CLK_SysTickDelay(6000);
 				}
 				uint8_t reg = offset * 32 + 0x80;
-				for (int j = 0; j < 32; j++){
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg + j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-						pu8Response[4 + j] = I2C_RxData[i2c_t][0];
-				}
+        I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 32, isNuvoton);
+        for (int j = 0; j < 32; j++){
+            pu8Response[4 + j] = I2C_RxData[i2c_t][j];
+        }	
+
 				pu8Response[3] = I2C_num;
 				pu8Response[2] = I2C_ext;
 				goto out;
@@ -564,81 +567,38 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				uint8_t pagecnt = inpb(pu8Src);
 				offset = inpb(pu8Src + 1);
 				
+				if ((pagecnt == 0x0) && (offset == 0x0)){
+						I2C_TxData[0] = 0x0;
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, isNuvoton);
+						I2C_TxData[0] = 0x0;
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, isNuvoton);
+				}
+				
 				if (offset == 0x0){
 						I2C_TxData[0] = pagecnt;
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, isNuvoton);
+						CLK_SysTickDelay(6000);
 				}
 				
-				I2C_RxData[0][0] = 0x0;
-				I2C_RxData[1][0] = 0x0;
-				I2C_RxData[2][0] = 0x0;
-				I2C_RxData[3][0] = 0x0;
-				I2C_RxData[4][0] = 0x0;
-				
-				I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x30, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-				uint8_t block_pass[5] = {0, 0, 0, 0, 0};
 				uint8_t I2C_num_2 = 0;
 				uint8_t I2C_ext_2 = 0;
-				for(int i = 0 ; i < MAX_PORT ; i++){
-						if (i != 4 && (I2C_num & (0x01 << i)) != 0x0){
-								block_pass[i] = I2C_RxData[i][0] & 0x4;
-								if (block_pass[i]){
-										I2C_num_2 |= (0x01 << i);
-								}
-						}
-						else if (i == 4 && I2C_ext != 0){
-								block_pass[i] = I2C_RxData[i][0] & 0x4;
-								if (block_pass[i]){
-										I2C_ext |= 0x01;
-								}
-						}
-				}	
-				
-				if (offset == 0x0 && pagecnt == 0x0){
-						I2C_TxData[0] = 0x0;
-						I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-						I2C_TxData[0] = 0x0;
-						I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-				}
-				uint8_t checker[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-				
-				I2C_RxData[0][0] = 0xFF;
-				I2C_RxData[1][0] = 0xFF;
-				I2C_RxData[2][0] = 0xFF;
-				I2C_RxData[3][0] = 0xFF;
-				I2C_RxData[4][0] = 0xFF;
-				
-				if (pagecnt < 4){
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-						for (int i = 0 ; i < MAX_PORT ; i++){
-								checker[i] = I2C_RxData[i][0];
-						}
-				}
-				else{
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-						for (int i = 0 ; i < MAX_PORT ; i++){
-								checker[i] = I2C_RxData[i][0];
-						}
-				}
-				I2C_num_2 = 0;
-				I2C_ext_2 = 0;
 
-				for(int i = 0 ; i < MAX_PORT ; i++){
-						if (i != 4 && checker[i] == 0x0){
-								I2C_num_2 |= (0x01 << i);
-						}
-						else if (i == 4 && checker[i] == 0x0){
-								I2C_ext_2 |= 1;
-						}
-				}	
+				I2C_num_2 = I2C_num;
+				I2C_ext_2 = I2C_ext;
 				
-				I2C_num_2 = I2C_num_2 & I2C_num;
-				I2C_ext_2 = I2C_ext_2 & I2C_ext;
 				uint8_t reg = offset * 32 + 0x80;
-				for (int j = 0; j < 32; j++){
-						I2C_TxData[0] = inpb(pu8Src + 2 + j);
-						int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+				for (int j = 0; j < 16; j++){
+						I2C_TxData[j] = inpb(pu8Src + 2 + j);
 				}
+				int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 16, 0, isNuvoton);
+
+				CLK_SysTickDelay(20000);
+				
+				for (int j = 0; j < 16; j++){
+						I2C_TxData[j] = inpb(pu8Src + 18 + j);
+				}
+				int ret2 = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 16, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 16, 0, isNuvoton);
+				
 				pu8Response[3] = I2C_num_2;
 				pu8Response[2] = I2C_ext_2;
 				goto out;
@@ -649,16 +609,23 @@ int ParseCmd(uint8_t *pu8Buffer, uint32_t u8len)
 				uint8_t I2C_num = 0;
 				uint8_t I2C_ext = 0;
 				for(int i = 0 ; i < MAX_PORT ; i++){
-						if (i != 4 && (u8Lcmd & (0x01 << i)) != 0x0 && port_boot_state[i] == 0x0){
+						if (i != 4 && (u8Lcmd & (0x01 << i)) != 0x0){
 								I2C_num |= (0x01 << i);
 						}
-						else if (i == 4 && u8Lext != 0x0 && port_boot_state[i] == 0x0){
+						else if (i == 4 && u8Lext != 0x0){
 								I2C_ext = 1;
 						}
 				}				
 				uint8_t reg = inpb(pu8Src);
 				I2C_TxData[0] = inpb(pu8Src + 1);
-				int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+				uint8_t two_b = inpb(pu8Src + 2);
+				I2C_TxData[1] = inpb(pu8Src + 3);
+				if(two_b != 0){
+						int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 2, 0, isNuvoton);
+				}
+				else{
+				    int ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, isNuvoton);
+				}
 				pu8Response[3] = I2C_num;			
 				pu8Response[2] = I2C_ext;
 				goto out;
@@ -676,29 +643,45 @@ void check_boot(void){
 		uint8_t addr_g[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 		for (int i = 0; i < MAX_PORT; i++){
 				port_boot_state[i] = 0xFF;
+				uint8_t already_find = 0;
 				for (uint8_t addr = 0x50; addr <= 0x77; addr++) {
-						uint8_t ret = i2c_address_acknowledged(i, addr);
+						uint8_t ret = 0;
+						int ii = (i < 4) ? (0x1 << i) : 0;
+						int iix = (i < 4) ? 0 : 1;
+						if (already_find == 0){
+								if (addr > 0x57 && addr < 0x70){
+										ret = 0;
+								}
+								else{
+										ret = i2c_address_acknowledged(i, addr);
+								}
+						}
 						if (ret){
 								I2C_RxData[i][0] = 0xFF;
 								addr_g[i] = addr;
-								int ii = (i < 4) ? (0x1 << i) : 0;
-								int iix = (i < 4) ? 0 : 1;
-								int ret2 = I2C_Read_Write(ii, iix, addr_g, 0xE1, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-								if (I2C_RxData[i][0] == 0x1){ 
-										port_boot_addr[i] = addr;
-										port_boot_state[i] = 0x1; // LDROM
-										//debug(i, port_boot_addr[i], port_boot_state[i]);
-										break;
-								}
-								I2C_RxData[i][0] = 0xFF;
-								int ret3 = I2C_Read_Write(ii, iix, addr_g, 0x00, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+								int ret3 = I2C_Read_Write(ii, iix, addr_g, 0x00, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 4, 1);
 								if (I2C_RxData[i][0] == 0x51){										
 										port_boot_addr[i] = addr;
 										port_boot_state[i] = 0x0; // APROM
-										//debug(i, port_boot_addr[i], port_boot_state[i]);
-										break;
-								}								
-						}
+										if (I2C_RxData[i][3] == 0xDA){
+												isNuvoton = 1;
+										}
+										else{
+												isNuvoton = 0;
+										}
+										already_find = 1;
+								}
+								else if (I2C_RxData[i][0] == 0x52){ 
+										I2C_RxData[i][0] = 0xFF;
+										int ret2 = I2C_Read_Write(ii, iix, addr_g, 0xE0, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, 1);
+										if (I2C_RxData[i][0] == 0xB1 || I2C_RxData[i][0] == 0xB2){
+												port_boot_addr[i] = addr;
+												port_boot_state[i] = 0x1; // LDROM
+												isNuvoton = 1;
+												already_find = 1;
+										}							
+								}													
+						}	
 				}
 		}
 }
@@ -778,7 +761,7 @@ int offline_operation(int port, int cmd){
 				}
 				I2C_num = I2C_num & I2C_num_base;
 				I2C_ext = I2C_ext & I2C_ext_base;
-				ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x3, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+				ret = I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x3, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, 1);
 				uint8_t I2C_num_2 = 0;
 				uint8_t I2C_ext_2 = 0;
 				for (int i = 0 ; i < MAX_PORT ; i++){
@@ -798,11 +781,11 @@ int offline_operation(int port, int cmd){
 				I2C_num_2 = I2C_num_2 & I2C_num_base;
 				I2C_ext_2 = I2C_ext_2 & I2C_ext_base;
 				I2C_TxData[0] = 0x4c;
-				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 				I2C_TxData[0] = 0x4a;
-				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x8, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 				
-				check_boot();
+				//check_boot();
 				I2C_num_2 = 0;
 				I2C_ext_2 = 0;
 	
@@ -878,7 +861,7 @@ int offline_operation(int port, int cmd){
 				temp[1] = (bin_len / 2048) & 0xFF;
 				temp[2] = ((bin_len / 2048) >> 8 ) & 0xFF;
 				memcpy(I2C_TxData, temp, 7);
-				I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x80, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 7, 0);
+				I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x80, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 7, 0, 1);
 
 				g_u32DataFlashAddr += 8;
 				
@@ -927,7 +910,7 @@ int offline_operation(int port, int cmd){
 						}
 						gpio_led_ctrl(light);
 						
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x81, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, dcount + 6, 0);
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x81, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, dcount + 6, 0, 1);
 						bin_written += dcount;
 						if (bin_written >= bin_len * progress / 10){
 								sprintf(str_buffer,  "Progress: %d %%", progress * 10);
@@ -986,7 +969,7 @@ int offline_operation(int port, int cmd){
 				ssd1306_WriteString(str_buffer, Font_6x8, White);
 				ssd1306_UpdateScreen();
 				
-				I2C_ReadMultiBytesOneReg_2(I2C_num, I2C_ext, I2C_PORT, port_boot_addr, 0xA4, I2C_RxData, 4);
+				I2C_ReadMultiBytesOneReg_STOP(I2C_num, I2C_ext, I2C_PORT, port_boot_addr, 0xA4, I2C_RxData, 4);
 				for (int i = 0; i < MAX_PORT; i++){
 						if((i < 4 && (((0x1 << i) & I2C_num) != 0)) || ((i == 4) && ((0x1 & I2C_ext) != 0))){
 								uint32_t result_crc32 = 0;
@@ -994,9 +977,6 @@ int offline_operation(int port, int cmd){
 								result_crc32 += (I2C_RxData[i][2]) << 16;
 								result_crc32 += (I2C_RxData[i][1]) << 8;  
 								result_crc32 += (I2C_RxData[i][0]);
-								// ---------- DEBUG
-								//verify_value[i] = result_crc32;
-								// ---------- DEBUG
 								if (result_crc32 != bin_crc32){
 										verify |= (0x1 << i);						
 								}
@@ -1035,17 +1015,7 @@ int offline_operation(int port, int cmd){
 				ssd1306_WriteString(str_buffer, Font_6x8, White);
 				
 				ssd1306_UpdateScreen();
-				// ------------ DEBUG ------------
-				//sprintf(str_buffer,  "base CRC %x", bin_crc32);
-				//		ssd1306_SetCursor(2, 16);
-				//		ssd1306_WriteString(str_buffer, Font_6x8, White);
-				//for (int i = 0; i < 5; i++){
-				//		sprintf(str_buffer,  "CRC%d: %x", i, verify_value[i]);
-				//		ssd1306_SetCursor(2, 24 + 8 * i);
-				//		ssd1306_WriteString(str_buffer, Font_6x8, White);
-				//}
-				//ssd1306_UpdateScreen();
-				// ------------ DEBUG ------------
+
 				if (verify != 0) {
 						FMC_DISABLE_AP_UPDATE(); 
 						FMC_Close(); 
@@ -1066,13 +1036,13 @@ int offline_operation(int port, int cmd){
 				I2C_num_2 = I2C_num_2 & I2C_num_base;
 				I2C_ext_2 = I2C_ext_2 & I2C_ext_base;
 				I2C_TxData[0] = 0x0;
-				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 
 				// wait for some time
 				for(int i = 0 ; i < 20; i++){
 						CLK_SysTickDelay(50000);
 				}				
-				check_boot();
+				//check_boot();
 				
 				I2C_num_2 = 0;
 				I2C_ext_2 = 0;
@@ -1137,9 +1107,10 @@ int offline_operation(int port, int cmd){
 						
 						if (offset % 4 == 0x0){
 								I2C_TxData[0] = offset / 4;
-								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
+								CLK_SysTickDelay(6000);
 						}
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x30, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x30, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, 1);
 						
 						uint8_t block_pass[5] = {0, 0, 0, 0, 0};
 						I2C_num_2 = 0;
@@ -1147,6 +1118,7 @@ int offline_operation(int port, int cmd){
 						I2C_RxData[1][0] = 0;
 						I2C_RxData[2][0] = 0;
 						I2C_RxData[3][0] = 0;
+						I2C_RxData[4][0] = 0;
 						for(int i = 0 ; i < MAX_PORT ; i++){
 								if (i != 4 && (I2C_num & (0x01 << i)) != 0x0){
 										block_pass[i] = I2C_RxData[i][0] & 0x4;
@@ -1163,52 +1135,31 @@ int offline_operation(int port, int cmd){
 						}
 						if (offset == 0x0 && offset / 4 == 0x0){
 								I2C_TxData[0] = 0x0;
-								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 								I2C_TxData[0] = 0x0;
-								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 						}
-						uint8_t checker[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-						I2C_RxData[0][0] = 0xFF;
-						I2C_RxData[1][0] = 0xFF;
-						I2C_RxData[2][0] = 0xFF;
-						I2C_RxData[3][0] = 0xFF;
-						I2C_RxData[4][0] = 0xFF;
-						if ((offset / 4) < 4){
-								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-								for (int i = 0 ; i < MAX_PORT ; i++){
-										checker[i] = I2C_RxData[i][0];
-								}
-						}
-						else{
-								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-								for (int i = 0 ; i < MAX_PORT ; i++){
-										checker[i] = I2C_RxData[i][0];
-								}
-						}
-						I2C_num_2 = 0;
-						I2C_ext_2 = 0;
-						for (int i = 0 ; i < MAX_PORT ; i++){
-								if (i != 4 && !checker[i]){
-										I2C_num_2 |= (0x01 << i);
-								}
-								else if (i == 4 && !checker[i]){
-										I2C_ext_2 = 0x01;
-								}
-						}
-						I2C_num_2 = I2C_num_2 & I2C_num;
-						I2C_ext_2 = I2C_ext_2 & I2C_ext;
+
 						uint8_t oo = (offset % 4);
 						uint8_t reg = oo * 32 + 0x80;
-						for (int j = 0; j < 8; j++){
-								I2C_TxData[0] = (uint8_t)(data[j] & 0xFF);
-								int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-								I2C_TxData[0] = (uint8_t)((data[j] >> 8) & 0xFF);
-								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 1 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-								I2C_TxData[0] = (uint8_t)((data[j] >> 16) & 0xFF);
-								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 2 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-								I2C_TxData[0] = (uint8_t)((data[j] >> 24) & 0xFF);
-								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 3 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+
+						for (int j = 0; j < 4; j++){
+						    I2C_TxData[4 * j] = (uint8_t)(data[j] & 0xFF);
+						    I2C_TxData[4 * j + 1] = (uint8_t)((data[j] >> 8) & 0xFF);
+						    I2C_TxData[4 * j + 2] = (uint8_t)((data[j] >> 16) & 0xFF);
+						    I2C_TxData[4 * j + 3] = (uint8_t)((data[j] >> 24) & 0xFF);
 						}
+						int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 16, 0, 1);
+						
+						CLK_SysTickDelay(20000);
+						
+						for (int j = 0; j < 4; j++){
+						    I2C_TxData[4 * j] = (uint8_t)(data[j + 4] & 0xFF);
+						    I2C_TxData[4 * j + 1] = (uint8_t)((data[j + 4] >> 8) & 0xFF);
+						    I2C_TxData[4 * j + 2] = (uint8_t)((data[j + 4] >> 16) & 0xFF);
+						    I2C_TxData[4 * j + 3] = (uint8_t)((data[j + 4] >> 24) & 0xFF);
+						}
+						int ret2 = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 16, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 16, 0, 1);
 						bin_written += dcount;
 						offset ++;
 				}
@@ -1318,11 +1269,12 @@ int offline_operation(int port, int cmd){
 				if (port_boot_state[ii] == 0x0){	
 						for (int pagecnt = 0; pagecnt < 8; pagecnt++){
 								I2C_TxData[0] = pagecnt;
-								I2C_Read_Write(I2C_num_base, I2C_ext_base, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num_base, I2C_ext_base, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, isNuvoton);
+								CLK_SysTickDelay(6000);
 								for (int offset = 0; offset < 4; offset++){
 										uint8_t reg = offset * 32 + 0x80;
 										for (int j = 0; j < 32; j++){
-												I2C_Read_Write(I2C_num_base, I2C_ext_base, port_boot_addr, reg + j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+												I2C_Read_Write(I2C_num_base, I2C_ext_base, port_boot_addr, reg + j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, isNuvoton);
 												st[pagecnt * 128 + offset * 32 + j] = I2C_RxData[ii][0];
 										}
 								}
@@ -1365,7 +1317,7 @@ int offline_operation(int port, int cmd){
 						const char *word;
 						for (int i = 0; i < 5; i++){
 								I2C_RxData[ii][0] = 0xFF;
-								int ret = I2C_Read_Write(I2C_num_base, I2C_ext_base, port_boot_addr, i + 21, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+								int ret = I2C_Read_Write(I2C_num_base, I2C_ext_base, port_boot_addr, i + 21, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, isNuvoton);
 								if (ret != -1){
 										switch (i) {
 											case 0: word = "CUSTOMER ID:"; break;
@@ -1476,7 +1428,7 @@ int offline_operation(int port, int cmd){
 						return 0;
 				}
 				
-				check_boot();
+				//check_boot();
 				
 				uint8_t I2C_num_2 = 0;
 				uint8_t I2C_ext_2 = 0;
@@ -1491,13 +1443,13 @@ int offline_operation(int port, int cmd){
 				I2C_num_2 = I2C_num_2 & I2C_num_base;
 				I2C_ext_2 = I2C_ext_2 & I2C_ext_base;
 				I2C_TxData[0] = 0x0;
-				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+				ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0xE2, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 
 				// wait for some time
 				for(int i = 0 ; i < 20; i++){
 						CLK_SysTickDelay(50000);
 				}				
-				check_boot();
+				//check_boot();
 				
 				I2C_num_2 = 0;
 				I2C_ext_2 = 0;
@@ -1562,9 +1514,10 @@ int offline_operation(int port, int cmd){
 						
 						if (offset % 4 == 0x0){
 								I2C_TxData[0] = offset / 4;
-								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0B, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
+								CLK_SysTickDelay(6000);
 						}
-						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x30, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
+						I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x30, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1, 1);
 						
 						uint8_t block_pass[5] = {0, 0, 0, 0, 0};
 						I2C_num_2 = 0;
@@ -1572,6 +1525,7 @@ int offline_operation(int port, int cmd){
 						I2C_RxData[1][0] = 0;
 						I2C_RxData[2][0] = 0;
 						I2C_RxData[3][0] = 0;
+						I2C_RxData[4][0] = 0;
 						for(int i = 0 ; i < MAX_PORT ; i++){
 								if (i != 4 && (I2C_num & (0x01 << i)) != 0x0){
 										block_pass[i] = I2C_RxData[i][0] & 0x4;
@@ -1588,52 +1542,32 @@ int offline_operation(int port, int cmd){
 						}
 						if (offset == 0x0 && offset / 4 == 0x0){
 								I2C_TxData[0] = 0x0;
-								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 								I2C_TxData[0] = 0x0;
-								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+								I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0, 1);
 						}
-						uint8_t checker[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-						I2C_RxData[0][0] = 0xFF;
-						I2C_RxData[1][0] = 0xFF;
-						I2C_RxData[2][0] = 0xFF;
-						I2C_RxData[3][0] = 0xFF;
-						I2C_RxData[4][0] = 0xFF;
-						if ((offset / 4) < 4){
-								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0C, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-								for (int i = 0 ; i < MAX_PORT ; i++){
-										checker[i] = I2C_RxData[i][0];
-								}
-						}
-						else{
-								I2C_Read_Write(I2C_num, I2C_ext, port_boot_addr, 0x0D, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 0, 1);
-								for (int i = 0 ; i < MAX_PORT ; i++){
-										checker[i] = I2C_RxData[i][0];
-								}
-						}
-						I2C_num_2 = 0;
-						I2C_ext_2 = 0;
-						for (int i = 0 ; i < MAX_PORT ; i++){
-								if (i != 4 && !checker[i]){
-										I2C_num_2 |= (0x01 << i);
-								}
-								else if (i == 4 && !checker[i]){
-										I2C_ext_2 = 0x01;
-								}
-						}
-						I2C_num_2 = I2C_num_2 & I2C_num;
-						I2C_ext_2 = I2C_ext_2 & I2C_ext;
+
 						uint8_t oo = (offset % 4);
 						uint8_t reg = oo * 32 + 0x80;
-						for (int j = 0; j < 8; j++){
-								I2C_TxData[0] = (uint8_t)(data[j] & 0xFF);
-								int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-								I2C_TxData[0] = (uint8_t)((data[j] >> 8) & 0xFF);
-								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 1 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-								I2C_TxData[0] = (uint8_t)((data[j] >> 16) & 0xFF);
-								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 2 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
-								I2C_TxData[0] = (uint8_t)((data[j] >> 24) & 0xFF);
-								ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 3 + 4 * j, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 1, 0);
+
+						for (int j = 0; j < 4; j++){
+						    I2C_TxData[4 * j] = (uint8_t)(data[j] & 0xFF);
+						    I2C_TxData[4 * j + 1] = (uint8_t)((data[j] >> 8) & 0xFF);
+						    I2C_TxData[4 * j + 2] = (uint8_t)((data[j] >> 16) & 0xFF);
+						    I2C_TxData[4 * j + 3] = (uint8_t)((data[j] >> 24) & 0xFF);
 						}
+						int ret = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 16, 0, 1);
+						
+						CLK_SysTickDelay(20000);
+						
+						for (int j = 0; j < 4; j++){
+						    I2C_TxData[4 * j] = (uint8_t)(data[j + 4] & 0xFF);
+						    I2C_TxData[4 * j + 1] = (uint8_t)((data[j + 4] >> 8) & 0xFF);
+						    I2C_TxData[4 * j + 2] = (uint8_t)((data[j + 4] >> 16) & 0xFF);
+						    I2C_TxData[4 * j + 3] = (uint8_t)((data[j + 4] >> 24) & 0xFF);
+						}
+						int ret2 = I2C_Read_Write(I2C_num_2, I2C_ext_2, port_boot_addr, reg + 16, (uint8_t *)I2C_TxData, (uint8_t **)I2C_RxData, 16, 0, 1);
+
 						bin_written += dcount;
 						offset ++;
 				}

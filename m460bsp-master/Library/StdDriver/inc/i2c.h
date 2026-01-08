@@ -487,8 +487,10 @@ uint32_t I2C_WriteMultiBytesTwoRegs(I2C_T *i2c, uint8_t u8SlaveAddr, uint16_t u1
 uint8_t I2C_ReadByte(I2C_T *i2c, uint8_t u8SlaveAddr);
 uint32_t I2C_ReadMultiBytes(I2C_T *i2c, uint8_t u8SlaveAddr, uint8_t rdata[], uint32_t u32rLen);
 uint8_t I2C_ReadByteOneReg(I2C_T *i2c, uint8_t u8SlaveAddr, uint8_t u8DataAddr);
+uint32_t* I2C_ReadOnly_OneReg_2(int i2c_num, int I2c_ext, I2C_T *i2c[], uint8_t u8SlaveAddr[], uint8_t* rdata[], uint32_t u32rLen);
 uint32_t I2C_ReadMultiBytesOneReg(I2C_T *i2c, uint8_t u8SlaveAddr, uint8_t u8DataAddr, uint8_t rdata[], uint32_t u32rLen);
 uint32_t* I2C_ReadMultiBytesOneReg_2(int i2c_num, int I2c_ext, I2C_T *i2c[], uint8_t u8SlaveAddr[], uint8_t u8DataAddr, uint8_t* rdata[], uint32_t u32rLen);
+uint32_t* I2C_ReadMultiBytesOneReg_STOP(int i2c_num, int I2c_ext, I2C_T *i2c[], uint8_t u8SlaveAddr[], uint8_t u8DataAddr, uint8_t* rdata[], uint32_t u32rLen);
 uint8_t I2C_ReadByteTwoRegs(I2C_T *i2c, uint8_t u8SlaveAddr, uint16_t u16DataAddr);
 uint32_t I2C_ReadMultiBytesTwoRegs(I2C_T *i2c, uint8_t u8SlaveAddr, uint16_t u16DataAddr, uint8_t rdata[], uint32_t u32rLen);
 uint32_t I2C_SMBusGetStatus(I2C_T *i2c);

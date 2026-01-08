@@ -3,21 +3,32 @@
 #include "i2c_transfer.h"
 #include "isp_user.h"
 
+//#define verC
+
 I2C_T* i2c_f[5] = {I2C0, I2C1, I2C2, I2C4, I2C3};
-int32_t I2C_Read_Write(int I2c_num, int I2c_ext, uint8_t u8SlvAddr[5], uint8_t u8DataAddr, uint8_t *I2C_TxData, uint8_t **I2C_RxData, int tx_length, int rx_length)
+int32_t I2C_Read_Write(int I2c_num, int I2c_ext, uint8_t u8SlvAddr[5], uint8_t u8DataAddr, uint8_t *I2C_TxData, uint8_t **I2C_RxData, int tx_length, int rx_length, int need_stop)
 {
 		if (I2c_num == 0 && I2c_ext == 0){
-			return 0;
+		    return 0;
 		}
     uint32_t u32TimeOutCnt = I2C_TIMEOUT;
 		if (tx_length != 0){
 				I2C_WriteMultiBytesOneReg_2(I2c_num, I2c_ext, i2c_f, u8SlvAddr, u8DataAddr, I2C_TxData, tx_length);
-		}		
+				//CLK_SysTickDelay(40); 
+		}	
 		if (rx_length == 0){
-			return 0;
+		    return 0;
 		}
-		I2C_ReadMultiBytesOneReg_2(I2c_num, I2c_ext, i2c_f, u8SlvAddr, u8DataAddr, I2C_RxData, rx_length);
-		
+#ifdef verC
+		if (need_stop == 1){
+				I2C_ReadMultiBytesOneReg_STOP(I2c_num, I2c_ext, i2c_f, u8SlvAddr, u8DataAddr, I2C_RxData, rx_length);
+		}
+		else{
+				I2C_ReadMultiBytesOneReg_2(I2c_num, I2c_ext, i2c_f, u8SlvAddr, u8DataAddr, I2C_RxData, rx_length);	
+		}
+#else
+		I2C_ReadMultiBytesOneReg_2(I2c_num, I2c_ext, i2c_f, u8SlvAddr, u8DataAddr, I2C_RxData, rx_length);	
+#endif
 		return 0;
 }
 
